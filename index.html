@@ -9,36 +9,30 @@
 </head>
 <body>
 
-    <h2>=> Danh sách sản phẩm có giá > 100</h2>
-    <ul id="productList"></ul>
+    <h2>Danh sách khách hàng</h2>
+    <ul id="userList"></ul>
 
     <h3 id="total"></h3>
 
     <script>
-        const products = [
-            { name: "Món A", price: 150 },
-            { name: "Món B", price: 80 },
-            { name: "Món C", price: 250 },
-            { name: "Món D", price: 60 },
+        const users = [
+            { name: "   hung nguyen   ", role: "Admin" },
+            { name: "  Nguyen Van A  ", role: "Editor" },
+            { name: "TRAN THI B   ", role: "Contributor" }
         ];
 
-
-        const filteredProducts = products.filter(product => product.price > 100);
-
-
-        const totalPrice = filteredProducts.reduce((sum, product) => sum + product.price, 0);
-
-
-        const productList = document.getElementById("productList");
-
-        filteredProducts.forEach(product => {
-            const li = document.createElement("li");
-            li.textContent = `${product.name} - ${product.price}`;
-            productList.appendChild(li);
+        users.forEach(user => {
+            user.name = user.name.trim().toUpperCase();
         });
 
+        const userList = document.getElementById("userList");
 
-        document.getElementById("total").textContent = `Tổng tiền sau khi lọc: ${totalPrice}`;
+        users.forEach(user => {
+            const li = document.createElement("li");
+            li.textContent = `Nà mè: ${user.name} - Role: ${user.role}`;
+            userList.appendChild(li);
+        });
+        console.log(users);
     </script>
 
 </body>
