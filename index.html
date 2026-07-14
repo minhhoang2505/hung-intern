@@ -43,6 +43,7 @@
             {
                 id: 101,
                 name: "  áo thun nam Cổ tròn   ",
+                discount: 25,
                 regular_price: "200000",
                 sale_price: "150000",
                 stock_status: "instock"
@@ -50,6 +51,7 @@
             {
                 id: 102,
                 name: "Quần Jean Nữ dáng suông ",
+                discount: 0,
                 regular_price: "350000",
                 sale_price: "",
                 stock_status: "outofstock"
@@ -57,6 +59,7 @@
             {
                 id: 103,
                 name: "   giày Thể Thao unisex",
+                discount: 10,
                 regular_price: "500000",
                 sale_price: "450000",
                 stock_status: "instock"
@@ -88,12 +91,35 @@
             const card = document.createElement("div");
             card.className = "card";
 
+            
+            const titleBox = document.createElement("div");
+            titleBox.style.display = "flex";
+            titleBox.style.justifyContent = "space-between";
+            titleBox.style.alignItems = "center";
+            titleBox.style.marginBottom = "10px";
+
+
             const link = document.createElement("a");
             link.href = `/product/${product.slug}`;
             link.textContent = product.name;
-            card.appendChild(link);
 
-            card.appendChild(document.createElement("br"));
+
+const discount = document.createElement("span");
+
+            if (product.discount > 0) {
+                
+            discount.textContent = `-${product.discount}%`;
+            discount.style.background = "red";
+            discount.style.color = "white";
+            discount.style.padding = "3px 8px";
+            discount.style.borderRadius = "5px";
+            discount.style.fontSize = "13px";
+        }
+
+            titleBox.appendChild(link);
+            titleBox.appendChild(discount);
+
+            card.appendChild(titleBox);
 
             if(product.sale_price !== ""){
 
