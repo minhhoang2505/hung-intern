@@ -5,34 +5,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terries</title>
-    
 </head>
 <body>
 
-    <h2>Danh sách khách hàng</h2>
+    <h2>Danh sách User</h2>
     <ul id="userList"></ul>
 
-    <h3 id="total"></h3>
-
     <script>
-        const users = [
-            { name: "   hung nguyen   ", role: "Admin" },
-            { name: "  Nguyen Van A  ", role: "Editor" },
-            { name: "TRAN THI B   ", role: "Contributor" }
+        const rawUsers = [
+            { name: "   hUng nguYen   ", role: "admin" },
+            { name: "  NGUYEN Van A  ", role: "editor" },
+            { name: "tran THI B   ", role: "contributor" }
         ];
-
-        users.forEach(user => {
-            user.name = user.name.trim().toUpperCase();
-        });
 
         const userList = document.getElementById("userList");
 
-        users.forEach(user => {
+        rawUsers.forEach(user => {
+
+            let cleanName = user.name.trim().toLowerCase();
+            cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+            user.name = cleanName;
+            user.username = cleanName.replace(/\s+/g, "").toLowerCase();
+          
             const li = document.createElement("li");
-            li.textContent = `Nà mè: ${user.name} - Role: ${user.role}`;
+            li.textContent = `Tên: ${user.name} - Username: ${user.username}`;
+
+            // Nếu là admin thì tô màu đỏ
+            if (user.role === "admin") {
+                li.style.color = "red";
+            }
             userList.appendChild(li);
         });
-        console.log(users);
+        console.log(rawUsers);
     </script>
 
 </body>
