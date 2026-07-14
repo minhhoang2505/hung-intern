@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terries</title>
+    
+</head>
+<body>
+
+    <h2>=> Danh sách sản phẩm có giá > 100</h2>
+    <ul id="productList"></ul>
+
+    <h3 id="total"></h3>
+
+    <script>
+        const products = [
+            { name: "Món A", price: 150 },
+            { name: "Món B", price: 80 },
+            { name: "Món C", price: 250 },
+            { name: "Món D", price: 60 },
+        ];
+
+
+        const filteredProducts = products.filter(product => product.price > 100);
+
+
+        const totalPrice = filteredProducts.reduce((sum, product) => sum + product.price, 0);
+
+
+        const productList = document.getElementById("productList");
+
+        filteredProducts.forEach(product => {
+            const li = document.createElement("li");
+            li.textContent = `${product.name} - ${product.price}`;
+            productList.appendChild(li);
+        });
+
+
+        document.getElementById("total").textContent = `Tổng tiền sau khi lọc: ${totalPrice}`;
+    </script>
+
+</body>
+</html>
