@@ -1,140 +1,103 @@
-const products = [
-    { id: 1, name: "Áo thun nam", category: "ao", price: 150000, inStock: true },
-    { id: 2, name: "Quần jean nữ", category: "quan", price: 350000, inStock: true },
-    { id: 3, name: "Giày thể thao", category: "giay", price: 500000, inStock: false },
-    { id: 4, name: "Áo khoác hoodie", category: "ao", price: 420000, inStock: true },
-    { id: 5, name: "Dép sandal", category: "giay", price: 180000, inStock: true },
-    { id: 6, name: "Quần shorts", category: "quan", price: 200000, inStock: false },
-];
+const form = document.getElementById("productForm");
+const productList = document.getElementById("productList");
 
-const productGrid = document.getElementById("productGrid");
-const searchInput = document.getElementById("searchInput");
-const filterButtons = document.getElementById("filterButtons");
+const products = [];
 
-const cartCount = document.getElementById("cartCount");
-const cartTotal = document.getElementById("cartTotal");
+form.addEventListener("submit", function (event) {
+    event.preventDefault();
 
-const cart = [];
+    const name = document.getElementById("name").value.trim();
+    const price = Number(document.getElementById("price").value);
+    const inStock = document.getElementById("stock").value === "true";
 
-let currentCategory = "all";
-let currentKeyword = "";
+    if (price < 0) {
+        alert("Giá sản phẩm không được âm!");
+        return;
+    }
 
-renderProducts(products);
+    const product = {
+        id: Date.now(),
+        name,
+        price,
+        inStock
+    };
 
-function renderProducts(list){
+    products.push(product);
 
-    productGrid.innerHTML = "";
+    renderProducts();
 
-    list.forEach(product=>{
+    form.reset();
+});
+
+function renderProducts() {
+
+    productList.innerHTML = "";git
+
+    products.forEach(product => {
 
         const card = document.createElement("div");
         card.className = "card";
 
         const title = document.createElement("h3");
         title.textContent = product.name;
-
-        const price = document.createElement("p");
-        price.textContent = `Giá: ${product.price.toLocaleString()} đ`;
-
         card.appendChild(title);
-        card.appendChild(price);
 
-        if(product.inStock){
+        const pPrice = document.createElement("p");
+        pPrice.textContent = `Giá: ${product.price.toLocaleString()} đ`;
+        card.appendChild(pPrice);
 
-            const btn = document.createElement("button");
-            btn.textContent = "Thêm vào giỏ";
-            btn.dataset.id = product.id;
+        const pStatus = document.createElement("p");
+        pStatus.textContent = `Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}`;
+        card.appendChild(pStatus);
 
-            card.appendChild(btn);
+        const btn = document.createElement("button");
+        btn.className = "delete-btn";
+        btn.dataset.id = product.id;
+        btn.textContent = "Xóa";
+        card.appendChild(btn);
 
-        }else{
+        productList.appendChild(card);
+    });
 
-            const span = document.createElement("span");
-            span.className = "out-stock";
-            span.textContent = "Hết hàng";
+    document.querySelectorAll(".delete-btn").forEach(button => {
 
-            card.appendChild(span);
-        }
+        button.addEventListener("click", function () {
 
-        productGrid.appendChild(card);
-
+            const id = Number(this.dataset.id);
+            const index = products.findIndex(product => product.id === id);
+            if (index !== -1) {
+                products.splice(index, 1);
+            }
+            renderProducts();
+        });
     });
 
 }
 
-function filterProducts(){
+/** Chữa bài
 
-    const result = products.filter(product=>{
+const card = document.createElement("div");
+card.className = "card";
 
-        const matchCategory =
-            currentCategory === "all" ||
-            product.category === currentCategory;
+// Tên - dữ liệu từ user -> dùng textContent
+const title = document.createElement("h3");
+title.textContent = product.name;
+card.appendChild(title);
 
-        const matchKeyword =
-            product.name
-            .toLowerCase()
-            .includes(currentKeyword.toLowerCase());
+// Giá - dữ liệu từ user -> dùng textContent
+const pPrice = document.createElement("p");
+pPrice.textContent = `Giá: ${product.price.toLocaleString()} đ`;
+card.appendChild(pPrice);
 
-        return matchCategory && matchKeyword;
+// Trạng thái - dữ liệu từ user -> dùng textContent
+const pStatus = document.createElement("p");
+pStatus.textContent = `Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}`;
+card.appendChild(pStatus);
 
-    });
-
-    renderProducts(result);
-
-}
-
-filterButtons.addEventListener("click",function(event){
-
-    if(event.target.tagName !== "BUTTON") return;
-
-    currentCategory = event.target.dataset.category;
-
-    filterProducts();
-
-});
-
-searchInput.addEventListener("input",function(){
-
-    currentKeyword = this.value;
-
-    filterProducts();
-
-});
-
-productGrid.addEventListener("click",function(event){
-
-    if(event.target.tagName !== "BUTTON") return;
-
-    const id = Number(event.target.dataset.id);
-
-    const product = products.find(item=>item.id===id);
-
-    cart.push(product);
-
-    updateCart();
-
-});
-const clearCart = document.getElementById("clearCart");
-    clearCart.addEventListener("click", function(){
-
-        cart.length = 0;
-
-    updateCart();
-
-});
-
-function updateCart(){
-
-    cartCount.textContent = cart.length;
-
-    let total = 0;
-
-    cart.forEach(product=>{
-
-        total += product.price;
-
-    });
-
-    cartTotal.textContent = total.toLocaleString();
-
-}
+// Nút xóa - không có dữ liệu user, chỉ là id số -> tương đối an toàn
+const btn = document.createElement("button");
+btn.className = "delete-btn";
+btn.dataset.id = product.id;
+btn.textContent = "Xóa";
+card.appendChild(btn);
+ */
