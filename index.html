@@ -5,87 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terries</title>
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, Helvetica, sans-serif;
-        }
-
-        body {
-            background: #f4f4f4;
-            padding: 30px;
-        }
-
-        .container {
-            max-width: 700px;
-            margin: auto;
-        }
-
-        h2 {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        form {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-        }
-
-        input,
-        select,
-        button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 12px;
-            font-size: 16px;
-        }
-
-        button {
-            background: #2196f3;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-
-        button:hover {
-            background: #1976d2;
-        }
-
-        #productList {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,.1);
-        }
-
-        .card h3 {
-            margin-bottom: 10px;
-        }
-
-        .card p {
-            margin: 5px 0;
-        }
-
-        .delete-btn {
-            margin-top: 10px;
-            background: crimson;
-        }
-
-        .delete-btn:hover {
-            background: rgb(139, 0, 0);
-        }
-    </style>
+    <link rel="stylesheet" href="output.css">
 </head>
 <body>
 
@@ -113,87 +33,14 @@
             <option value="false">Hết hàng</option>
         </select>
 
-        <button type="submit">Thêm sản phẩm
-        </button>
+        <button type="submit">Thêm sản phẩm</button>
     </form>
 
     <div id="productList"></div>
 
 </div>
 
-<script>
-    const form = document.getElementById("productForm");
-    const productList = document.getElementById("productList");
-
-    const products = [];
-
-    form.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const name = document.getElementById("name").value.trim();
-    const price = Number(document.getElementById("price").value);
-    const inStock = document.getElementById("stock").value === "true";
-
-    if (price < 0) {
-        alert("Giá sản phẩm không được âm!");
-        return;
-    }
-
-    const product = {
-        id: Date.now(),
-        name,
-        price,
-        inStock
-    };
-
-    products.push(product);
-    renderProducts();
-    form.reset();
-});
-
-    function renderProducts() {
-
-        productList.innerHTML = "";
-
-        products.forEach(product => {
-
-            const card = document.createElement("div");
-            card.className = "card";
-
-            card.innerHTML = `
-                <h3>${product.name}</h3>
-                <p>Giá: ${product.price.toLocaleString()} đ</p>
-                <p>Trạng thái: ${
-                    product.inStock ? "Còn hàng" : "Hết hàng"
-                }</p>
-
-                <button class="delete-btn" data-id="${product.id}">
-                    Xóa
-                </button>
-            `;
-
-            productList.appendChild(card);
-        });
-
-        document.querySelectorAll(".delete-btn").forEach(button => {
-
-            button.addEventListener("click", function () {
-
-                const id = Number(this.dataset.id);
-
-                const index = products.findIndex(product => product.id === id);
-
-                if (index !== -1) {
-                    products.splice(index, 1);
-                }
-
-                renderProducts();
-            });
-
-        });
-
-    }
-</script>
+<script src="main.js"></script>
 
 </body>
 </html>
