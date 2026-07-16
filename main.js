@@ -31,7 +31,7 @@ form.addEventListener("submit", function (event) {
 
 function renderProducts() {
 
-    productList.innerHTML = "";
+    productList.innerHTML = "";git
 
     products.forEach(product => {
 
@@ -40,16 +40,21 @@ function renderProducts() {
 
         const title = document.createElement("h3");
         title.textContent = product.name;
-
         card.appendChild(title);
 
-        card.innerHTML += `
-    <p>Giá: ${product.price.toLocaleString()} đ</p>
-    <p>Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}</p>
-    <button class="delete-btn" data-id="${product.id}">
-        Xóa
-    </button>
-`;
+        const pPrice = document.createElement("p");
+        pPrice.textContent = `Giá: ${product.price.toLocaleString()} đ`;
+        card.appendChild(pPrice);
+
+        const pStatus = document.createElement("p");
+        pStatus.textContent = `Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}`;
+        card.appendChild(pStatus);
+
+        const btn = document.createElement("button");
+        btn.className = "delete-btn";
+        btn.dataset.id = product.id;
+        btn.textContent = "Xóa";
+        card.appendChild(btn);
 
         productList.appendChild(card);
     });
@@ -59,17 +64,14 @@ function renderProducts() {
         button.addEventListener("click", function () {
 
             const id = Number(this.dataset.id);
-
             const index = products.findIndex(product => product.id === id);
-
             if (index !== -1) {
                 products.splice(index, 1);
             }
-
             renderProducts();
         });
-
     });
+
 }
 
 /** Chữa bài
