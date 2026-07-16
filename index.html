@@ -128,20 +128,28 @@
     const products = [];
 
     form.addEventListener("submit", function (event) {
+    event.preventDefault();
 
-        event.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const price = Number(document.getElementById("price").value);
+    const inStock = document.getElementById("stock").value === "true";
 
-        const product = {
-            id: Date.now(),
-            name: document.getElementById("name").value.trim(),
-            price: Number(document.getElementById("price").value),
-            inStock: document.getElementById("stock").value === "true"
-        };
+    if (price < 0) {
+        alert("Giá sản phẩm không được âm!");
+        return;
+    }
 
-        products.push(product);
-        renderProducts();
-        form.reset();
-    });
+    const product = {
+        id: Date.now(),
+        name,
+        price,
+        inStock
+    };
+
+    products.push(product);
+    renderProducts();
+    form.reset();
+});
 
     function renderProducts() {
 
