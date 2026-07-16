@@ -38,14 +38,18 @@ function renderProducts() {
         const card = document.createElement("div");
         card.className = "card";
 
-        card.innerHTML = `
-            <h3>${product.name}</h3>
-            <p>Giá: ${product.price.toLocaleString()} đ</p>
-            <p>Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}</p>
-            <button class="delete-btn" data-id="${product.id}">
-                Xóa
-            </button>
-        `;
+        const title = document.createElement("h3");
+title.textContent = product.name;
+
+card.appendChild(title);
+
+card.innerHTML += `
+    <p>Giá: ${product.price.toLocaleString()} đ</p>
+    <p>Trạng thái: ${product.inStock ? "Còn hàng" : "Hết hàng"}</p>
+    <button class="delete-btn" data-id="${product.id}">
+        Xóa
+    </button>
+`;
 
         productList.appendChild(card);
     });
