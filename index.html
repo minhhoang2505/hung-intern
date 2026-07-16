@@ -4,40 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terries</title>
-
     <link rel="stylesheet" href="output.css">
 </head>
 <body>
 
 <div class="container">
 
-    <h2>Thêm sản phẩm</h2>
+    <input
+        type="text"
+        id="searchInput"
+        placeholder="Tìm kiếm sản phẩm..."
+    >
 
-    <form id="productForm">
-        <input
-            type="text"
-            id="name"
-            placeholder="Tên sản phẩm"
-            required
-        >
+    <div id="filterButtons">
+        <button data-category="all">Tất cả</button>
+        <button data-category="ao">Áo</button>
+        <button data-category="quan">Quần</button>
+        <button data-category="giay">Giày & Dép</button>
+    </div>
 
-        <input
-            type="number"
-            id="price"
-            placeholder="Giá sản phẩm"
-            required
-        >
+    <div id="productGrid"></div>
 
-        <select id="stock">
-            <option value="true">Còn hàng</option>
-            <option value="false">Hết hàng</option>
-        </select>
-
-        <button type="submit">Thêm sản phẩm</button>
-    </form>
-
-    <div id="productList"></div>
-
+    <div id="cartSummary">
+        Giỏ hàng:
+        <span id="cartCount">0</span> sản phẩm |
+        Tổng:
+        <span id="cartTotal">0</span> đ
+    </div>
+    <button id="clearCart">Xóa giỏ hàng</button>
 </div>
 
 <script src="main.js"></script>
