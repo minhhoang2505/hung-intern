@@ -2,171 +2,190 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terries</title>
+
     <style>
-        #productGrid{
-            display:flex;
-            gap:20px;
-            flex-wrap:wrap;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
-        .card{
-            width:250px;
-            border:1px solid #ccc;
-            padding:15px;
-            border-radius:8px;
+        body {
+            background: #f4f4f4;
+            padding: 30px;
         }
 
-        .sale-price{
-            color:red;
-            font-weight:bold;
+        .container {
+            max-width: 700px;
+            margin: auto;
         }
 
-        .out-stock{
-            color:red;
-            font-weight:bold;
+        h2 {
+            margin-bottom: 20px;
+            text-align: center;
         }
 
-        button{
-            margin-top:10px;
-            padding:8px 12px;
-            cursor:pointer;
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 12px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #1976d2;
+        }
+
+        #productList {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,.1);
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            margin: 5px 0;
+        }
+
+        .delete-btn {
+            margin-top: 10px;
+            background: crimson;
+        }
+
+        .delete-btn:hover {
+            background: darkred;
         }
     </style>
 </head>
 <body>
 
-    <div id="productGrid"></div>
+<div class="container">
 
-    <script>
-        const wooProducts = [
-            {
-                id: 101,
-                name: "  áo thun nam Cổ tròn   ",
-                discount: 25,
-                regular_price: "200000",
-                sale_price: "150000",
-                stock_status: "instock"
-            },
-            {
-                id: 102,
-                name: "Quần Jean Nữ dáng suông ",
-                discount: 0,
-                regular_price: "350000",
-                sale_price: "",
-                stock_status: "outofstock"
-            },
-            {
-                id: 103,
-                name: "   giày Thể Thao unisex",
-                discount: 10,
-                regular_price: "500000",
-                sale_price: "450000",
-                stock_status: "instock"
-            }
-        ];
+    <h2>Thêm sản phẩm</h2>
 
-        const productGrid = document.getElementById("productGrid");
+    <form id="productForm">
+        <input
+            type="text"
+            id="name"
+            placeholder="Tên sản phẩm"
+            required
+        >
 
-        wooProducts.forEach(product => {
+        <input
+            type="number"
+            id="price"
+            placeholder="Giá sản phẩm"
+            required
+        >
 
-            let newName = product.name.trim().toLowerCase();
-            newName = newName.charAt(0).toUpperCase() + newName.slice(1);
-            product.name = newName;
+        <select id="stock">
+            <option value="true">Còn hàng</option>
+            <option value="false">Hết hàng</option>
+        </select>
 
-            product.slug = newName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g,"-");
+        <button type="submit">
+        </button>
+    </form>
 
-            if(product.sale_price !== ""){
-                const regular = Number(product.regular_price);
-                const sale = Number(product.sale_price);
+    <div id="productList"></div>
 
-                product.discount = Math.round(
-                    (regular - sale) / regular * 100
-                );
-            }
-            else{
-                product.discount = 0;
-            }
+</div>
+
+<script>
+    const form = document.getElementById("productForm");
+    const productList = document.getElementById("productList");
+
+    const products = [];
+
+    form.addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        const product = {
+            id: Date.now(),
+            name: document.getElementById("name").value.trim(),
+            price: Number(document.getElementById("price").value),
+            inStock: document.getElementById("stock").value === "true"
+        };
+
+        products.push(product);
+        renderProducts();
+        form.reset();
+    });
+
+    function renderProducts() {
+
+        productList.innerHTML = "";
+
+        products.forEach(product => {
 
             const card = document.createElement("div");
             card.className = "card";
 
-            
-            const titleBox = document.createElement("div");
-            titleBox.style.display = "flex";
-            titleBox.style.justifyContent = "space-between";
-            titleBox.style.alignItems = "center";
-            titleBox.style.marginBottom = "10px";
+            card.innerHTML = `
+                <h3>${product.name}</h3>
+                <p>Giá: ${product.price.toLocaleString()} đ</p>
+                <p>Trạng thái: ${
+                    product.inStock ? "Còn hàng" : "Hết hàng"
+                }</p>
 
+                <button class="delete-btn" data-id="${product.id}">
+                    Xóa
+                </button>
+            `;
 
-            const link = document.createElement("a");
-            link.href = `/product/${product.slug}`;
-            link.textContent = product.name;
+            productList.appendChild(card);
+        });
 
+        document.querySelectorAll(".delete-btn").forEach(button => {
 
-const discount = document.createElement("span");
+            button.addEventListener("click", function () {
 
-            if (product.discount > 0) {
-                
-            discount.textContent = `-${product.discount}%`;
-            discount.style.background = "red";
-            discount.style.color = "white";
-            discount.style.padding = "3px 8px";
-            discount.style.borderRadius = "5px";
-            discount.style.fontSize = "13px";
-        }
+                const id = Number(this.dataset.id);
 
-            titleBox.appendChild(link);
-            titleBox.appendChild(discount);
+                const index = products.findIndex(product => product.id === id);
 
-            card.appendChild(titleBox);
+                if (index !== -1) {
+                    products.splice(index, 1);
+                }
 
-            if(product.sale_price !== ""){
-
-                const oldPrice = document.createElement("del");
-                oldPrice.textContent = product.regular_price + "đ";
-
-                const salePrice = document.createElement("span");
-                salePrice.className = "sale-price";
-                salePrice.textContent = " " + product.sale_price + "đ";
-
-                card.appendChild(oldPrice);
-                card.appendChild(document.createElement("br"));
-                card.appendChild(salePrice);
-
-            }
-            else{
-
-                const price = document.createElement("p");
-                price.textContent = product.regular_price + "đ";
-                card.appendChild(price);
-
-            }
-
-            card.appendChild(document.createElement("br"));
-
-            if(product.stock_status === "outofstock"){
-
-                const span = document.createElement("span");
-                span.className = "out-stock";
-                span.textContent = "Hết hàng!";
-                card.appendChild(span);
-
-            }
-            else{
-
-                const btn = document.createElement("button");
-                btn.textContent = "Thêm vào giỏ hàng";
-                card.appendChild(btn);
-
-            }
-
-            productGrid.appendChild(card);
+                renderProducts();
+            });
 
         });
 
-        console.log(wooProducts);
-    </script>
+    }
+</script>
 
 </body>
 </html>
