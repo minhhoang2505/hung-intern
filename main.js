@@ -1,59 +1,143 @@
-const btn = document.getElementById("loadProducts");
-const storeGrid = document.getElementById("storeGrid");
-const status = document.getElementById("status");
+const initStore = document.getElementById("initStore");
+const loadingStatus = document.getElementById("loadingStatus");
+const categoryFilter = document.getElementById("categoryFilter");
+const productGrid = document.getElementById("productGrid");
 
-function truncateText(text, maxLength = 40) {
-    return text.length > maxLength
-        ? text.slice(0, maxLength) + "..."
+
+function truncateText(text, length = 35){
+    return text.length > length
+        ? text.slice(0, length) + "..."
         : text;
 }
 
-btn.addEventListener("click", async () => {
+function renderProducts(products){
 
-    status.textContent = "Đang tải dữ liệu...";
+    productGrid.textContent = "";
 
-    storeGrid.innerHTML = "";
+    const fragment = document.createDocumentFragment();
 
-    try {
+    products.forEach(product=>{
 
-        const response = await fetch("https://fakestoreapi.com/products?limit=5");
+        const card=document.createElement("div");
+        card.className="card";
 
-        if (!response.ok) {
-            throw new Error("Lỗi khi lấy dữ liệu.");
-        }
+        const img=document.createElement("img");
+        img.src=product.image;
+        img.alt=product.title;
 
-        const products = await response.json();
+        const title=document.createElement("div");
+        title.className="title";
+        title.textContent=truncateText(product.title);
 
-        status.textContent = "";
+        const price=document.createElement("div");
+        price.className="price";
+        price.textContent="$"+product.price;
 
-        products.forEach(product => {
+        card.appendChild(img);
+        card.appendChild(title);
+        card.appendChild(price);
 
-            const card = document.createElement("div");
-            card.className = "card";
+        fragment.appendChild(card);
 
-            const image = document.createElement("img");
-            image.src = product.image;
-            image.alt = product.title;
+    });
 
-            const title = document.createElement("div");
-            title.className = "title";
-            title.textContent = truncateText(product.title);
+    productGrid.appendChild(fragment);
 
-            const price = document.createElement("div");
-            price.className = "price";
-            price.textContent = `$${product.price}`;
+}
 
-            card.appendChild(image);
-            card.appendChild(title);
-            card.appendChild(price);
 
-            storeGrid.appendChild(card);
-        });
+function renderCategories(categories){
 
-    } catch (error) {
+    categoryFilter.textContent="";
 
-        status.textContent = "Không thể tải dữ liệu. Vui lòng thử lại!";
+    const fragment=document.createDocumentFragment();
+
+    categories.forEach(category=>{
+
+        const btn=document.createElement("button");
+        btn.textContent=category;
+        btn.dataset.category=category;
+
+        fragment.appendChild(btn);
+
+    });
+
+    categoryFilter.appendChild(fragment);
+
+}
+
+
+initStore.addEventListener("click",async()=>{
+
+    initStore.disabled=true;
+
+    loadingStatus.textContent="Đang khởi tạo cửa hàng...";
+
+    try{
+
+        const [categoryRes,productRes]=await Promise.all([
+            fetch("https://fakestoreapi.com/products/categories"),
+            fetch("https://fakestoreapi.com/products?limit=8")
+        ]);
+
+        const categories=await categoryRes.json();
+        const products=await productRes.json();
+
+        renderCategories(categories);
+
+        renderProducts(products);
+
+    }
+    catch(error){
+
+        loadingStatus.textContent="Không thể tải dữ liệu.";
+
         console.error(error);
+
+    }
+    finally{
+
+        loadingStatus.textContent="";
+
+        initStore.disabled=false;
+
+    }
+
+});
+
+
+
+categoryFilter.addEventListener("click",async(e)=>{
+
+    if(e.target.tagName!=="BUTTON") return;
+
+    const category=e.target.dataset.category;
+
+    loadingStatus.textContent="Đang tải danh mục...";
+
+    productGrid.classList.add("loading");
+
+    try{
+
+        const response=await fetch(`https://fakestoreapi.com/products/category/${category}`);
+
+        const products=await response.json();
+
+        renderProducts(products);
+
+    }
+    catch(error){
+
+        loadingStatus.textContent="Không tải được danh mục.";
+
+        console.error(error);
+
+    }
+    finally{
+
+        loadingStatus.textContent="";
+
+        productGrid.classList.remove("loading");
 
     }
 
