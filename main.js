@@ -1,140 +1,60 @@
-const products = [
-    { id: 1, name: "Áo thun nam", category: "ao", price: 150000, inStock: true },
-    { id: 2, name: "Quần jean nữ", category: "quan", price: 350000, inStock: true },
-    { id: 3, name: "Giày thể thao", category: "giay", price: 500000, inStock: false },
-    { id: 4, name: "Áo khoác hoodie", category: "ao", price: 420000, inStock: true },
-    { id: 5, name: "Dép sandal", category: "giay", price: 180000, inStock: true },
-    { id: 6, name: "Quần shorts", category: "quan", price: 200000, inStock: false },
-];
+const btn = document.getElementById("loadProducts");
+const storeGrid = document.getElementById("storeGrid");
+const status = document.getElementById("status");
 
-const productGrid = document.getElementById("productGrid");
-const searchInput = document.getElementById("searchInput");
-const filterButtons = document.getElementById("filterButtons");
+function truncateText(text, maxLength = 40) {
+    return text.length > maxLength
+        ? text.slice(0, maxLength) + "..."
+        : text;
+}
 
-const cartCount = document.getElementById("cartCount");
-const cartTotal = document.getElementById("cartTotal");
+btn.addEventListener("click", async () => {
 
-const cart = [];
+    status.textContent = "Đang tải dữ liệu...";
 
-let currentCategory = "all";
-let currentKeyword = "";
+    storeGrid.innerHTML = "";
 
-renderProducts(products);
+    try {
 
-function renderProducts(list){
+        const response = await fetch("https://fakestoreapi.com/products?limit=5");
 
-    productGrid.innerHTML = "";
-
-    list.forEach(product=>{
-
-        const card = document.createElement("div");
-        card.className = "card";
-
-        const title = document.createElement("h3");
-        title.textContent = product.name;
-
-        const price = document.createElement("p");
-        price.textContent = `Giá: ${product.price.toLocaleString()} đ`;
-
-        card.appendChild(title);
-        card.appendChild(price);
-
-        if(product.inStock){
-
-            const btn = document.createElement("button");
-            btn.textContent = "Thêm vào giỏ";
-            btn.dataset.id = product.id;
-
-            card.appendChild(btn);
-
-        }else{
-
-            const span = document.createElement("span");
-            span.className = "out-stock";
-            span.textContent = "Hết hàng";
-
-            card.appendChild(span);
+        if (!response.ok) {
+            throw new Error("Lỗi khi lấy dữ liệu.");
         }
 
-        productGrid.appendChild(card);
+        const products = await response.json();
 
-    });
+        status.textContent = "";
 
-}
+        products.forEach(product => {
 
-function filterProducts(){
+            const card = document.createElement("div");
+            card.className = "card";
 
-    const result = products.filter(product=>{
+            const image = document.createElement("img");
+            image.src = product.image;
+            image.alt = product.title;
 
-        const matchCategory =
-            currentCategory === "all" ||
-            product.category === currentCategory;
+            const title = document.createElement("div");
+            title.className = "title";
+            title.textContent = truncateText(product.title);
 
-        const matchKeyword =
-            product.name
-            .toLowerCase()
-            .includes(currentKeyword.toLowerCase());
+            const price = document.createElement("div");
+            price.className = "price";
+            price.textContent = `$${product.price}`;
 
-        return matchCategory && matchKeyword;
+            card.appendChild(image);
+            card.appendChild(title);
+            card.appendChild(price);
 
-    });
+            storeGrid.appendChild(card);
+        });
 
-    renderProducts(result);
+    } catch (error) {
 
-}
+        status.textContent = "Không thể tải dữ liệu. Vui lòng thử lại!";
+        console.error(error);
 
-filterButtons.addEventListener("click",function(event){
-
-    if(event.target.tagName !== "BUTTON") return;
-
-    currentCategory = event.target.dataset.category;
-
-    filterProducts();
-
-});
-
-searchInput.addEventListener("input",function(){
-
-    currentKeyword = this.value;
-
-    filterProducts();
+    }
 
 });
-
-productGrid.addEventListener("click",function(event){
-
-    if(event.target.tagName !== "BUTTON") return;
-
-    const id = Number(event.target.dataset.id);
-
-    const product = products.find(item=>item.id===id);
-
-    cart.push(product);
-
-    updateCart();
-
-});
-const clearCart = document.getElementById("clearCart");
-    clearCart.addEventListener("click", function(){
-
-        cart.length = 0;
-
-    updateCart();
-
-});
-
-function updateCart(){
-
-    cartCount.textContent = cart.length;
-
-    let total = 0;
-
-    cart.forEach(product=>{
-
-        total += product.price;
-
-    });
-
-    cartTotal.textContent = total.toLocaleString();
-
-}
