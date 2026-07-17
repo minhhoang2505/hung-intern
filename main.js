@@ -124,21 +124,12 @@ categoryFilter.addEventListener("click",async(e)=>{
         const products=await response.json();
 
         renderProducts(products);
-
-    }
-    catch(error){
-
-        loadingStatus.textContent="Không tải được danh mục.";
-
+        loadingStatus.textContent = "";
+    } catch (error) {
+        loadingStatus.textContent = "Không tải được danh mục.";
         console.error(error);
-
-    }
-    finally{
-
-        loadingStatus.textContent="";
-
+    } finally {
         productGrid.classList.remove("loading");
-
     }
 
 });
