@@ -97,15 +97,10 @@ initStore.addEventListener("click",async()=>{
     }
     finally{
 
-        loadingStatus.textContent="";
-
-        initStore.disabled=false;
-
-    }
+        initStore.disabled = false;
+}
 
 });
-
-
 
 categoryFilter.addEventListener("click",async(e)=>{
 
