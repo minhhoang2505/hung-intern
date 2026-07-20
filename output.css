@@ -4,79 +4,73 @@
     box-sizing:border-box;
     font-family:Arial, Helvetica, sans-serif;
 }
-h1{
-    margin-bottom:20px;
-}
-button{
-    padding: 10px;
-    gap: 10px;
-}
 
 body{
+    background:#f4f4f4;
     padding:40px;
-    background:#f3f3f3;
 }
 
-#loadingStatus{
-    margin:20px 0;
-    font-weight:bold;
-    color:#e67e22;
-}
-
-#categoryFilter{
+.products{
     display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-bottom:25px;
+    gap:25px;
+    list-style:none;
 }
 
-#categoryFilter button{
-    padding:10px 16px;
-    border:none;
-    border-radius:8px;
-    background:#0d6efd;
-    color:white;
-    cursor:pointer;
-}
-
-#categoryFilter button:hover{
-    background:#084298;
-}
-
-#productGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:20px;
-}
-
-.card{
+.product{
+    width:280px;
     background:white;
-    padding:15px;
     border-radius:10px;
-    box-shadow:0 2px 8px rgba(0,0,0,.15);
-    text-align:center;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
 }
 
-.card img{
-    width:150px;
-    height:150px;
-    object-fit:contain;
-    margin-bottom:10px;
+.woocommerce-LoopProduct-link{
+    text-decoration:none;
+    color:#222;
 }
 
-.title{
-    font-weight:bold;
-    margin-bottom:10px;
-    min-height:45px;
+.woocommerce-loop-product__title{
+    margin-bottom:15px;
+    font-size:20px;
 }
 
 .price{
     color:red;
-    font-size:20px;
-    font-weight:bold;
+    font-size:18px;
+    display:block;
+    margin-bottom:20px;
 }
 
-.loading{
-    opacity:.4;
-    pointer-events:none;
+.add_to_cart_button{
+    display:inline-block;
+    padding:10px 18px;
+    background:#0073aa;
+    color:white;
+    text-decoration:none;
+    border-radius:6px;
+    transition:.3s;
+}
+
+.add_to_cart_button:hover{
+    background:#005f8d;
+}
+
+.added{
+    background:#28a745 !important;
+}
+
+#toast{
+    position:fixed;
+    right:30px;
+    bottom:30px;
+    background:#222;
+    color:white;
+    padding:15px 20px;
+    border-radius:8px;
+    opacity:0;
+    transition:.3s;
+}
+
+#toast.show{
+    opacity:1;
 }
