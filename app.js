@@ -1,3 +1,33 @@
+/**
+ * =================================================================
+ * GHI CHÚ VỀ TỐI ƯU RENDER (tránh Reflow nhiều lần)
+ * =================================================================
+ * Mục đích:
+ * Toàn bộ các hàm render*()/create*() trong file này (renderLiveShows,
+ * renderProducts, renderOpportunityProducts, renderBrands, renderArrivals,
+ * renderTrendingRankList, renderInstagramFeed, renderFooterLinks...)
+ * đều dùng để vẽ danh sách sản phẩm/nội dung lên giao diện.
+ *
+ * Logic xử lý:
+ * - Mỗi hàm dùng .map() để biến 1 mảng dữ liệu thành 1 mảng chuỗi HTML,
+ *   rồi .join("") gộp tất cả thành 1 chuỗi HTML DUY NHẤT.
+ * - Chuỗi đó chỉ được gán vào DOM đúng 1 lần bằng container.innerHTML = ...,
+ *   KHÔNG bao giờ dùng innerHTML += hoặc appendChild() bên trong vòng lặp.
+ *
+ * Lý do chọn cách này:
+ * Nếu dùng innerHTML += hoặc appendChild() cho từng phần tử trong forEach,
+ * mỗi lần thêm 1 phần tử trình duyệt phải tính toán lại layout (Reflow)
+ * và vẽ lại (Repaint) — với N sản phẩm sẽ tốn N lần Reflow.
+ * Gộp chuỗi HTML bằng map()/join() rồi gán innerHTML 1 lần chỉ khiến
+ * trình duyệt Reflow/Repaint đúng 1 lần duy nhất, hiệu năng tốt hơn hẳn
+ * khi danh sách dài. Đây cũng là lý do không cần thêm
+ * document.createDocumentFragment(): Fragment chỉ thật sự cần thiết khi
+ * phải build cây DOM bằng createElement()/appendChild() từng node; còn
+ * ở đây build bằng chuỗi HTML nên gán innerHTML 1 lần đã đạt hiệu quả
+ * tương đương (chỉ 1 lần parse HTML + 1 lần Reflow), mà code lại ngắn
+ * gọn hơn nhiều so với việc tạo từng element bằng tay.
+ */
+
 // =============================
 // BIẾN TOÀN CỤC
 // =============================
@@ -5,8 +35,120 @@
 const liveShowGrid = document.getElementById("liveShowGrid");
 const productGrid = document.getElementById("productGrid");
 const opportunityGrid = document.getElementById("opportunityGrid");
+const brandsGrid = document.getElementById("brandsGrid");
 
 const WISHLIST_KEY = "wishlist";
+
+
+// =============================
+// KHU VỰC "CAROUSEL DOTS" (mobile)
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Tạo chấm điều hướng (dot) bên dưới 1 khu vực dạng lưới
+(Live Show, Opportunity, Buying Now, Brands) để dùng khi
+CSS chuyển lưới đó thành carousel cuộn ngang trên mobile.
+Trên desktop, khu vực này vẫn là lưới nhiều cột bình thường
+và .carousel-dots bị ẩn qua CSS nên hàm này không ảnh hưởng gì.
+
+Logic xử lý:
+- Đếm số phần tử con trực tiếp trong gridEl (mỗi item = 1 chấm).
+- map() số lượng đó thành các <button class="carousel-dot">, chấm
+  đầu tiên có class "active".
+- Gắn sự kiện click cho từng dot: cuộn gridEl tới đúng item tương
+  ứng bằng scrollIntoView() (mượt, không cần tự tính toán toạ độ).
+- Gắn sự kiện "scroll" (có throttle bằng requestAnimationFrame)
+  lên gridEl: dựa vào scrollLeft để xác định item nào đang ở gần
+  mép trái nhất, rồi bật class "active" cho dot tương ứng.
+
+Lý do chọn cách này:
+- Dùng scrollIntoView({inline:"start"}) thay vì tự tính scrollLeft
+  bằng tay vì trình duyệt đã tối ưu và xử lý mượt (behavior:"smooth")
+  sẵn, không cần viết lại animation cuộn.
+- Dùng requestAnimationFrame để throttle sự kiện "scroll" vì scroll
+  bắn ra rất nhiều lần/giây — nếu tính toán DOM (đổi class active)
+  ở mọi lần bắn sự kiện sẽ gây giật khi cuộn; rAF đảm bảo chỉ tính
+  toán tối đa 1 lần mỗi khung hình (~60 lần/giây).
+- Hàm dùng chung (generic) cho cả 4 khu vực (Live Show, Opportunity,
+  Buying Now, Brands) thay vì viết 4 hàm riêng gần giống hệt nhau —
+  tránh lặp code (DRY).
+*/
+// =======================================================
+
+function initGridCarousel(gridEl, dotsEl) {
+
+    if (!gridEl || !dotsEl) return;
+
+    const items = Array.from(gridEl.children);
+
+    if (items.length === 0) {
+        dotsEl.innerHTML = "";
+        return;
+    }
+
+    dotsEl.innerHTML = items
+        .map((_, index) => `
+            <button
+                class="carousel-dot ${index === 0 ? "active" : ""}"
+                data-index="${index}"
+                aria-label="Đi tới mục ${index + 1}">
+            </button>
+        `)
+        .join("");
+
+    const dots = Array.from(dotsEl.children);
+
+    dots.forEach((dot, index) => {
+
+        dot.addEventListener("click", () => {
+
+            items[index].scrollIntoView({
+                behavior: "smooth",
+                inline: "start",
+                block: "nearest"
+            });
+
+        });
+
+    });
+
+    let ticking = false;
+
+    gridEl.addEventListener("scroll", () => {
+
+        if (ticking) return;
+
+        ticking = true;
+
+        requestAnimationFrame(() => {
+
+            let closestIndex = 0;
+            let closestDistance = Infinity;
+
+            items.forEach((item, index) => {
+
+                const distance = Math.abs(item.offsetLeft - gridEl.scrollLeft);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = index;
+                }
+
+            });
+
+            dots.forEach((dot, index) => {
+                dot.classList.toggle("active", index === closestIndex);
+            });
+
+            ticking = false;
+
+        });
+
+    });
+
+}
 
 
 // =======================================================
@@ -172,7 +314,7 @@ function createProductCard(product) {
             class="wishlist-btn ${isWishlist(product.id) ? "active" : ""}"
             data-id="${product.id}">
 
-            <i class="fa-regular fa-heart"></i>
+            <i class="fa-heart ${isWishlist(product.id) ? "fa-solid" : "fa-regular"}"></i>
 
         </button>
 
@@ -234,6 +376,8 @@ function renderLiveShows() {
         .map(createProductCard)
         .join("");
 
+      initGridCarousel(liveShowGrid, document.getElementById("liveShowDots"));
+
 }
 
 // =======================================================
@@ -251,29 +395,7 @@ Event sau khi render cần bind lại để các nút mới hoạt động.
 */
 // =======================================================
 
-function bindWishlistEvents() {
 
-    const buttons = document.querySelectorAll(".wishlist-btn");
-
-    buttons.forEach(button => {
-
-        button.addEventListener("click", () => {
-
-            const id = Number(button.dataset.id);
-
-            toggleWishlist(id);
-
-            renderLiveShows();
-
-            renderProducts(currentCategory);
-
-            bindWishlistEvents();
-
-        });
-
-    });
-
-}
 // =============================
 // BIẾN TRẠNG THÁI
 // =============================
@@ -325,6 +447,8 @@ function renderProducts(category = "all") {
         .map(createProductCard)
         .join("");
 
+    initGridCarousel(productGrid, document.getElementById("buyingDots"));
+
 }
 
 
@@ -346,7 +470,6 @@ function filterProducts(category) {
 
     renderProducts(category);
 
-    bindWishlistEvents();
 
 }
 
@@ -528,6 +651,8 @@ function renderOpportunityProducts() {
         .map(createOpportunityCard)
         .join("");
 
+    initGridCarousel(opportunityGrid, document.getElementById("opportunityDots"));
+
 }
 
 
@@ -702,7 +827,7 @@ function startClock() {
 Mục đích:
 Tạo HTML cho 1 dòng sản phẩm nhỏ bên trong 1 brand card.
 
-Logo xử lý:
+Logic xử lý:
 - Nếu có salePrice thì hiển thị giá gốc gạch ngang + giá sale.
 - Nếu salePrice là null thì chỉ hiển thị 1 giá bình thường (normal-price).
 
@@ -810,6 +935,246 @@ function renderBrands() {
         .map(createBrandCard)
         .join("");
 
+    initGridCarousel(grid, document.getElementById("brandsDots"));
+
+}
+
+
+// =============================
+// KHU VỰC "NEW ARRIVALS"
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Hiển thị 2 banner quảng cáo livestream ở khu New Arrivals
+(ảnh nền + tiêu đề + link "Watch Live Now").
+
+Logic xử lý:
+- Lấy mảng newArrivalsBanners từ data.js.
+- map() từng banner thành 1 khối HTML có background-image inline
+  (vì mỗi banner 1 ảnh khác nhau, không thể gộp chung 1 class CSS).
+- join("") gộp lại thành chuỗi HTML rồi gán 1 lần vào #arrivalsGrid.
+
+Lý do chọn cách này:
+Dùng .map()/.join() thay vì vòng lặp for vì chỉ cần biến đổi
+1-1 từ mảng dữ liệu sang mảng chuỗi HTML rồi nối lại — không cần
+biến đếm hay điều kiện dừng như for, code ngắn và dễ đọc hơn.
+Gán innerHTML 1 lần (thay vì appendChild trong lúc lặp) giúp
+trình duyệt chỉ phải re-render DOM đúng 1 lần thay vì nhiều lần.
+*/
+// =======================================================
+
+function renderArrivals() {
+
+    const grid = document.getElementById("arrivalsGrid");
+
+    if (!grid) return;
+
+    grid.innerHTML = newArrivalsBanners.map(banner => `
+
+        <article
+            class="arrival-banner"
+            style="background-image:url(${banner.image})">
+
+            <p class="arrival-title">${banner.title}</p>
+
+            <a href="#" class="arrival-link">
+                Watch Live Now <i class="fa-solid fa-arrow-right"></i>
+            </a>
+
+        </article>
+
+    `).join("");
+
+}
+
+
+// =============================
+// KHU VỰC "TRENDING NOW, POPULAR"
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Hiển thị sản phẩm nổi bật (đang live, có đếm ngược + số người xem)
+ở khối bên trái của khu Trending now, popular.
+
+Logic xử lý:
+- Đọc object trendingSpotlight từ data.js.
+- Dùng lại formatTime() đã viết sẵn để đổi countdownSeconds
+  thành chuỗi giờ:phút:giây, sau đó .split(":").join(" : ")
+  để ra đúng định dạng "22 : 36 : 05" như ảnh mẫu.
+- Badge giảm giá (discountLabel) chỉ render khi có giá trị,
+  tránh hiện ngoặc đơn rỗng "()" khi sản phẩm không giảm giá.
+
+Lý do chọn cách này:
+Tái sử dụng formatTime() có sẵn thay vì viết thêm 1 hàm định dạng
+thời gian mới — tránh lặp lại logic tính giờ/phút/giây đã có.
+*/
+// =======================================================
+
+function renderTrendingSpotlight() {
+
+    const el = document.getElementById("trendingSpotlight");
+
+    if (!el) return;
+
+    const product = trendingSpotlight;
+
+    const countdownText = formatTime(product.countdownSeconds)
+        .split(":")
+        .join(" : ");
+
+    el.innerHTML = `
+
+        <div class="trending-image" style="background-image:url(${product.image})">
+
+            <span class="trending-live">
+                <i class="dot"></i> ${countdownText}
+            </span>
+
+            <span class="trending-viewing">
+                <i class="fa-solid fa-eye"></i> ${product.viewingCount.toLocaleString("en-US")} Viewing
+            </span>
+
+        </div>
+
+        <div class="trending-info">
+
+            <p class="product-brand">${product.brand}</p>
+
+            <h3 class="trending-name">${product.name}</h3>
+
+            <p class="product-price">
+                <del class="original-price">$${Number(product.price).toFixed(2)}</del>
+                <span class="sale-price">$${Number(product.salePrice).toFixed(2)}</span>
+                ${product.discountLabel
+                    ? `<span class="discount-tag">(${product.discountLabel})</span>`
+                    : ""}
+            </p>
+
+        </div>
+
+    `;
+
+}
+
+
+// =======================================================
+/*
+Mục đích:
+Hiển thị bảng xếp hạng 01-05 ở khối bên phải của khu Trending.
+
+Logic xử lý:
+- map() qua trendingRankList, mỗi item render 1 <li> gồm
+  số thứ hạng + tên sản phẩm.
+- Số thứ hạng luôn hiện 2 chữ số (01, 02...) bằng padStart(2,"0").
+
+Lý do chọn cách này:
+padStart(2,"0") xử lý được mọi số từ 1-99 mà không cần viết
+if/else để tự thêm số "0" phía trước cho từng trường hợp.
+Dùng map() vì mỗi phần tử mảng chỉ cần biến đổi độc lập thành
+1 <li>, không phụ thuộc vào phần tử trước/sau — rất hợp với map().
+*/
+// =======================================================
+
+function renderTrendingRankList() {
+
+    const list = document.getElementById("trendingRankList");
+
+    if (!list) return;
+
+    list.innerHTML = trendingRankList.map(item => `
+
+        <li class="rank-item">
+            <span class="rank-number">${String(item.rank).padStart(2, "0")}</span>
+            <span class="rank-name">${item.name}</span>
+        </li>
+
+    `).join("");
+
+}
+
+
+// =============================
+// KHU VỰC "#SEOULIVE"
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Hiển thị lưới ảnh kiểu Instagram feed dưới hashtag #seoulive.
+
+Logic xử lý:
+- Mảng instagramFeed chỉ là danh sách URL ảnh (string), không phải
+  object phức tạp vì phần này thuần tuý trang trí, không có giá/tên.
+- map() từng URL thành 1 thẻ <img> bọc trong div.instagram-item.
+
+Lý do chọn cách này:
+Không cần object {id, image,...} vì không có hành vi tương tác
+nào khác ngoài hiển thị ảnh — mảng string đơn giản là đủ và
+dễ thêm/bớt ảnh trực tiếp trong data.js mà không sợ nhầm field.
+*/
+// =======================================================
+
+function renderInstagramFeed() {
+
+    const grid = document.getElementById("instagramGrid");
+
+    if (!grid) return;
+
+    grid.innerHTML = instagramFeed.map(src => `
+        <div class="instagram-item">
+            <img src="${src}" alt="#seoulive">
+        </div>
+    `).join("");
+
+}
+
+
+// =============================
+// FOOTER
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Hiển thị 3 cột link ở footer (Information, Collections,
+Need Some Help ?) từ dữ liệu footerColumns.
+
+Logic xử lý:
+- map() 2 lần lồng nhau: lần ngoài lặp qua từng cột, lần trong
+  lặp qua từng link trong col.links để tạo các thẻ <li><a>.
+
+Lý do chọn cách này:
+Tách link ra data.js thay vì viết cứng trong index.html giúp
+sau này đổi/thêm/bớt link ở footer chỉ cần sửa 1 file duy nhất
+(data.js), không phải mò trong HTML dài. .map() lồng nhau phù hợp
+vì đây đúng là cấu trúc dữ liệu lồng nhau (mảng cột chứa mảng link).
+*/
+// =======================================================
+
+function renderFooterLinks() {
+
+    const wrap = document.getElementById("footerLinks");
+
+    if (!wrap) return;
+
+    wrap.innerHTML = footerColumns.map(col => `
+
+        <div class="footer-col">
+
+            <h4>${col.title}</h4>
+
+            <ul>
+                ${col.links.map(link => `<li><a href="#">${link}</a></li>`).join("")}
+            </ul>
+
+        </div>
+
+    `).join("");
+
 }
 
 
@@ -852,11 +1217,39 @@ function init() {
 
     renderBrands();
 
+    renderArrivals();
+
+    renderTrendingSpotlight();
+
+    renderTrendingRankList();
+
+    renderInstagramFeed();
+
+    renderFooterLinks();
+
 }
 
 
 // =============================
 // KHỞI CHẠY ỨNG DỤNG
 // =============================
+function bindWishlistEvents() {
 
+    document.addEventListener("click", (event) => {
+
+        const button = event.target.closest(".wishlist-btn");
+
+        if (!button) return;
+
+        const id = Number(button.dataset.id);
+
+        toggleWishlist(id);
+
+        renderLiveShows();
+
+        renderProducts(currentCategory);
+
+    });
+
+}
 init();

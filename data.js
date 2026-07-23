@@ -89,7 +89,7 @@ const opportunityProducts = [
         badge: "BEST SELLER",
         name: "Test 101",
         price: 15.50,
-        salePrice: 96.50,
+        salePrice: 15,
         image: "img/placeholder.jpg"
     },
     {
@@ -98,7 +98,7 @@ const opportunityProducts = [
         badge: null,
         name: "Test 102",
         price: 15.50,
-        salePrice: 15.50,
+        salePrice: 15.20,
         image: "img/placeholder.jpg"
     },
     {
@@ -200,5 +200,98 @@ const brands = [
                 image: "img/placeholder.jpg"
             }
         ]
+    }
+];
+
+
+/**
+ * =================================================================
+ * KHU VỰC "NEW ARRIVALS" (2 banner quảng cáo livestream)
+ * =================================================================
+ */
+
+const newArrivalsBanners = [
+    {
+        id: 1,
+        title: "Shop What Influencers Are Selling — Live",
+        image: "img/placeholder.jpg"
+    },
+    {
+        id: 2,
+        title: "Shop What Influencers Are Selling — Live",
+        image: "img/placeholder.jpg"
+    }
+];
+
+
+/**
+ * =================================================================
+ * KHU VỰC "TRENDING NOW, POPULAR"
+ * =================================================================
+ * trendingSpotlight: sản phẩm nổi bật bên trái (đang phát livestream,
+ * có đếm ngược countdown + số người đang xem).
+ * trendingRankList: danh sách xếp hạng 01-05 bên phải.
+ */
+
+const trendingSpotlight = {
+    brand: "KAINE",
+    name: "Rosemary Relief Gel Cleanser",
+    price: 15.50,
+    salePrice: 15.50,
+    discountLabel: "sale 20%",
+    viewingCount: 2553,
+    countdownSeconds: 81365, // hiển thị dạng 22 : 36 : 05
+    image: "img/placeholder.jpg"
+};
+
+const trendingRankList = [
+    { rank: 1, name: "Rosemary Relief Gel Cleanser" },
+    { rank: 2, name: "Rosemary Relief Gel Cleanser" },
+    { rank: 3, name: "Rosemary Relief Gel Cleanser" },
+    { rank: 4, name: "Rosemary Relief Gel Cleanser" },
+    { rank: 5, name: "Rosemary Relief Gel Cleanser" }
+];
+
+
+/**
+ * =================================================================
+ * KHU VỰC "#SEOULIVE" (lưới ảnh kiểu Instagram feed)
+ * =================================================================
+ */
+
+const instagramFeed = [
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg",
+    "img/placeholder.jpg"
+];
+
+
+/**
+ * =================================================================
+ * FOOTER
+ * =================================================================
+*/
+
+const footerColumns = [
+    {
+        title: "Information",
+        links: ["Our Story", "Our Journal", "FAQ", "Contact Us"]
+    },
+    {
+        title: "Collections",
+        links: ["Face makeup", "Skin care", "Tools", "Gift set"]
+    },
+    {
+        title: "Need Some Help ?",
+        links: ["Privacy Policy", "Shipping Info", "Return & Refund Policy", "Payment Methods"]
     }
 ];
