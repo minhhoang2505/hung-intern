@@ -1323,7 +1323,7 @@ button{
     display:flex;
     align-items:center;
     gap:14px;
-    background:#f8f8f8;
+    background:#c7c7c7be;
     border-radius:14px;
     padding:14px 18px;
 }
@@ -1363,6 +1363,7 @@ button{
 }
 
 .instagram-item{
+    border-radius: 20px;
     aspect-ratio:1 / 1;
     overflow:hidden;
     background:#f2f2f2;

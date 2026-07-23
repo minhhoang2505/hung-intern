@@ -66,7 +66,7 @@ const products = [
         name: "Test 5",
         price: 49,
         salePrice: 24,
-        category: "lifestyle",
+        category: "accessories",
         image: "img/placeholder.jpg",
         isLiveShow: true
     },
@@ -77,7 +77,7 @@ const products = [
         name: "Test 6",
         price: 49,
         salePrice: 24,
-        category: "lifestyle",
+        category: "fashion",
         image: "img/placeholder.jpg",
         isLiveShow: true
     },
@@ -88,7 +88,7 @@ const products = [
         name: "Test 7",
         price: 49,
         salePrice: 24,
-        category: "lifestyle",
+        category: "tech",
         image: "img/placeholder.jpg",
         isLiveShow: true
     },
@@ -99,7 +99,7 @@ const products = [
         name: "Test 8",
         price: 49,
         salePrice: 24,
-        category: "lifestyle",
+        category: "home",
         image: "img/placeholder.jpg",
         isLiveShow: true
     },
@@ -281,12 +281,12 @@ const newArrivalsBanners = [
     {
         id: 1,
         title: "Shop What Influencers Are Selling — Live",
-        image: "img/placeholder.jpg"
+        image: "img/imgplaceholder.jpg"
     },
     {
         id: 2,
         title: "Shop What Influencers Are Selling — Live",
-        image: "img/placeholder.jpg"
+        image: "img/imgplaceholder.jpg"
     }
 ];
 
@@ -308,7 +308,7 @@ const trendingSpotlight = {
     discountLabel: "sale 20%",
     viewingCount: 2553,
     countdownSeconds: 81365, // hiển thị dạng 22 : 36 : 05
-    image: "img/placeholder.jpg"
+    image: "img/imgplaceholder.jpg"
 };
 
 const trendingRankList = [
@@ -327,18 +327,18 @@ const trendingRankList = [
  */
 
 const instagramFeed = [
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg",
-    "img/placeholder.jpg"
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg",
+    "img/imgplaceholder.jpg"
 ];
 
 
