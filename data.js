@@ -59,6 +59,73 @@ const products = [
         image: "img/placeholder.jpg",
         isLiveShow: true
     },
+    {
+        id: 5,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 5",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+    {
+        id: 6,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 6",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+    {
+        id: 7,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 7",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+    {
+        id: 8,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 8",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+    {
+        id: 9,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 9",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+    {
+        id: 10,
+        brand: "Test",
+        badge: "NEW",
+        name: "Test 10",
+        price: 49,
+        salePrice: 24,
+        category: "lifestyle",
+        image: "img/placeholder.jpg",
+        isLiveShow: true
+    },
+
 ];
 /**
  * =================================================================

@@ -889,6 +889,9 @@ button{
 .buying-grid{
     grid-template-columns:repeat(5, 1fr);
 }
+.buying-grid > :nth-child(n + 6) {
+    display: none;
+}
 
 .view-all-wrap{
     text-align:center;
