@@ -103,16 +103,42 @@ function initGridCarousel(gridEl, dotsEl) {
     dotsEl.innerHTML = items
         .map((_, index) => `
             <button
-                class="carousel-dot ${index === 0 ? "active" : ""}"
+                class="carousel-dot"
                 data-index="${index}"
                 aria-label="Đi tới mục ${index + 1}">
             </button>
         `)
-        .join("");
+        .join("") + `<span class="carousel-dot-indicator" aria-hidden="true"></span>`;
 
 
-    const dots = Array.from(dotsEl.children);
+    const dots = Array.from(dotsEl.querySelectorAll(".carousel-dot"));
 
+    const indicator = dotsEl.querySelector(".carousel-dot-indicator");
+
+
+    function setActiveDot(index){
+
+        dots.forEach(d => d.classList.remove("active"));
+
+        const activeDot = dots[index];
+
+        activeDot?.classList.add("active");
+
+        // Trước đây chỉ bật/tắt class "active" trên đúng cái dot đó, nên nó
+        // CHUYỂN đúng nhưng "nhảy cóc" tại chỗ chứ không trượt mượt qua vị trí
+        // dot bên cạnh. Giờ dùng 1 chấm indicator riêng, transform theo toạ độ
+        // (offsetLeft/offsetTop) của dot đang active — CSS "transition:transform"
+        // sẽ tự vẽ animation trượt mượt giữa 2 vị trí.
+        if (activeDot && indicator) {
+
+            indicator.style.transform =
+                `translate(${activeDot.offsetLeft - 1}px, ${activeDot.offsetTop - 1}px)`;
+
+        }
+
+    }
+
+    setActiveDot(0);
 
     dots.forEach((dot, index)=>{
 
@@ -120,6 +146,8 @@ function initGridCarousel(gridEl, dotsEl) {
             "click",
             ()=>{
 
+                // Chỉ cần scroll — dot active sẽ tự đồng bộ qua sự kiện "scroll"
+                // bên dưới (dùng chung 1 nguồn xử lý duy nhất, tránh đá nhau).
                 items[index].scrollIntoView({
                     behavior:"smooth",
                     inline:"start",
@@ -133,6 +161,54 @@ function initGridCarousel(gridEl, dotsEl) {
         );
 
     });
+
+    // Đồng bộ dot "active" theo đúng vị trí đang cuộn tới (gridEl.scrollLeft),
+    // dùng chung cho cả 2 trường hợp: bấm dot (scroll mượt) VÀ tự kéo tay.
+    // Debounce vì sự kiện "scroll" bắn liên tục hàng chục lần/giây.
+    let scrollDebounce = null;
+
+    function syncActiveDotFromScroll(){
+
+        // Dùng getBoundingClientRect() thay vì offsetLeft: offsetLeft chỉ đúng
+        // khi gridEl có "position:relative", còn getBoundingClientRect() luôn
+        // cho toạ độ thật trên màn hình bất kể CSS positioning của cha là gì
+        // — nên tính khoảng cách item-so-với-mép-trái-khung-nhìn luôn chính xác.
+        const gridLeft = gridEl.getBoundingClientRect().left;
+
+        let closestIndex = 0;
+        let closestDistance = Infinity;
+
+        items.forEach((item, index) => {
+
+            const itemLeft = item.getBoundingClientRect().left;
+
+            const distance = Math.abs(itemLeft - gridLeft);
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+
+        });
+
+        setActiveDot(closestIndex);
+
+    }
+
+    gridEl.addEventListener(
+        "scroll",
+        () => {
+            clearTimeout(scrollDebounce);
+            scrollDebounce = setTimeout(syncActiveDotFromScroll, 100);
+        },
+        {
+            signal: controller.signal,
+            passive: true
+        }
+    );
+
+    controller.signal.addEventListener("abort", () => clearTimeout(scrollDebounce));
+
 }
 
 
@@ -296,51 +372,101 @@ function escapeHTML(text) {
         .replace(/'/g, "&#39;");
 
 }
-function createProductCard(product) {
+/**
+ * Tạo HTML cho 1 sản phẩm, ĐÃ BỌC SẴN trong 1 cột Bootstrap Grid.
+ *
+ * @param {object} product - sản phẩm (id, brand, badge, name, price, salePrice, image).
+ * @param {object} [options]
+ * @param {string} [options.colClass] - class cột Bootstrap, mặc định 4 cột trên desktop,
+ *   2 cột trên tablet, 1 cột trên mobile — đúng như bài yêu cầu (col-12 col-md-6 col-lg-3).
+ *   Dùng col-sm-6 thay vì col-md-6 để chuyển sang 2 cột sớm hơn (từ 576px) cho gọn màn hình.
+ * @param {string} [options.extraClass] - class phụ gắn thêm vào <article> (vd: "opportunity-card").
+ */
+function createProductCard(product, options = {}) {
+
+    const {
+        colClass = "col-12 col-sm-6 col-lg-3",
+        extraClass = ""
+    } = options;
 
     const wished = isWishlist(product.id);
 
+    // data-* trên vùng ảnh: dùng để Bootstrap Modal (#quickViewModal) đọc lại
+    // thông tin sản phẩm khi mở modal (xem hàm bindQuickViewModal()).
+    const quickViewData = `
+        data-bs-toggle="modal"
+        data-bs-target="#quickViewModal"
+        data-id="${product.id}"
+        data-name="${escapeHTML(product.name)}"
+        data-brand="${escapeHTML(product.brand ?? "")}"
+        data-price="${Number(product.price)}"
+        data-saleprice="${Number(product.salePrice)}"
+        data-image="${encodeURI(product.image)}"
+        data-badge="${escapeHTML(product.badge ?? "")}"
+    `;
+
     return `
 
-    <article class="product-card">
+    <div class="${colClass}">
 
-        ${product.badge
-            ? `<span class="product-badge ${getBadgeClass(product.badge)}">${escapeHTML(product.badge)}</span>`
-            : ""}
+        <article class="product-card mx-auto ${extraClass}">
 
-        <button
-            class="wishlist-btn ${wished ? "active" : ""}"
-            data-id="${product.id}">
+            ${product.badge
+                ? `<span class="product-badge ${getBadgeClass(product.badge)}">${escapeHTML(product.badge)}</span>`
+                : ""}
 
-            <i class="fa-heart ${wished ? "fa-solid" : "fa-regular"}"></i>
+            <button
+                class="wishlist-btn ${wished ? "active" : ""}"
+                data-action="wishlist"
+                data-id="${product.id}">
 
-        </button>
+                <i class="fa-heart ${wished ? "fa-solid" : "fa-regular"}"></i>
 
-        <div class="product-image">
+            </button>
 
-            <img
-                src="${encodeURI(product.image)}"
-                alt="${escapeHTML(product.name)}">
+            <!-- Click vào ảnh = Xem nhanh (mở Bootstrap Modal) -->
+            <div class="product-image quick-view-trigger" role="button" ${quickViewData}>
 
-        </div>
+                <img
+                    src="${encodeURI(product.image)}"
+                    alt="${escapeHTML(product.name)}">
 
-        <div class="product-info">
-
-            <p class="product-brand">${escapeHTML(product.brand ?? "")}</p>
-
-            <h3 class="product-name">${escapeHTML(product.name)}</h3>
-
-            <div class="product-price">
-
-                <del class="original-price">$${Number(product.price).toFixed(2)}</del>
-
-                <span class="sale-price">$${Number(product.salePrice).toFixed(2)}</span>
+                <span class="quick-view-label">
+                    <i class="fa-regular fa-eye me-1"></i>Xem nhanh
+                </span>
 
             </div>
 
-        </div>
+            <div class="product-info">
 
-    </article>
+                <p class="product-brand">${escapeHTML(product.brand ?? "")}</p>
+
+                <h3 class="product-name">${escapeHTML(product.name)}</h3>
+
+                <div class="product-price">
+
+                    <del class="original-price">$${Number(product.price).toFixed(2)}</del>
+
+                    <span class="sale-price">$${Number(product.salePrice).toFixed(2)}</span>
+
+                </div>
+
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-outline-dark btn-sm w-100 mt-2"
+                data-action="cart"
+                data-id="${product.id}"
+                data-name="${escapeHTML(product.name)}">
+
+                <i class="fa-solid fa-cart-shopping me-1"></i>Add to Cart
+
+            </button>
+
+        </article>
+
+    </div>
 
     `;
 
@@ -369,7 +495,7 @@ function renderLiveShows() {
         .slice(0, 4);
 
       liveShowGrid.innerHTML = liveProducts
-        .map(createProductCard)
+        .map(product => createProductCard(product))
         .join("");
 
       initGridCarousel(liveShowGrid, document.getElementById("liveShowDots"));
@@ -413,11 +539,194 @@ function handleWishlistClick(event) {
 
     toggleWishlist(id);
 
+    const nowWished = isWishlist(id);
+
     renderLiveShows();
 
     renderProducts(currentCategory);
 
+    renderOpportunityProducts();
+
+    showToast(
+        nowWished
+            ? "Đã thêm vào Wishlist ❤️"
+            : "Đã bỏ khỏi Wishlist"
+    );
+
 }
+
+// =============================
+// BOOTSTRAP: TOAST (thông báo góc màn hình)
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Hiện thông báo góc màn hình khi thêm/bỏ Wishlist hoặc thêm giỏ hàng,
+dùng đúng Component Toast có sẵn của Bootstrap thay vì tự viết
+CSS animation + setTimeout ẩn/hiện thủ công.
+
+Logic xử lý:
+- Đổi nội dung #appToastBody.
+- getOrCreateInstance() tái sử dụng đúng 1 instance Toast cho phần tử
+  #appToast (Bootstrap tự quản lý việc show/hide/animation/tự ẩn sau delay).
+*/
+// =======================================================
+
+function showToast(message) {
+
+    const toastEl = document.getElementById("appToast");
+
+    if (!toastEl || typeof bootstrap === "undefined") return;
+
+    document.getElementById("appToastBody").textContent = message;
+
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2200 });
+
+    toast.show();
+
+}
+
+
+// =============================
+// BOOTSTRAP: ADD TO CART
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Xử lý mọi nút "Add to Cart" (trên product-card lẫn trong Modal Quick View)
+bằng 1 event delegation duy nhất dựa vào [data-action="cart"].
+
+Lý do chọn cách này:
+Các nút được render lại liên tục (mỗi lần renderProducts/renderLiveShows...)
+nên bind trực tiếp từng nút sẽ bị mất sự kiện. Delegation lên document
+(giống bindWishlistEvents) đảm bảo nút render sau vẫn hoạt động.
+*/
+// =======================================================
+
+let cartEventsBound = false;
+
+function bindCartEvents() {
+
+    if (cartEventsBound) return;
+
+    cartEventsBound = true;
+
+    document.addEventListener("click", (event) => {
+
+        const button = event.target.closest('[data-action="cart"]');
+
+        if (!button) return;
+
+        showToast(`Đã thêm "${button.dataset.name}" vào giỏ hàng 🛒`);
+
+    });
+
+}
+
+
+// =============================
+// BOOTSTRAP: MODAL QUICK VIEW
+// =============================
+
+// =======================================================
+/*
+Mục đích:
+Điền dữ liệu sản phẩm vào Modal #quickViewModal mỗi khi modal được mở,
+và xử lý 2 nút hành động (Add to Cart / Add to Wishlist) bên trong modal.
+
+Logic xử lý:
+- Bootstrap tự mở modal nhờ data-bs-toggle/data-bs-target đặt sẵn trên
+  vùng ảnh sản phẩm (xem createProductCard()) — không cần gọi
+  new bootstrap.Modal(...).show() bằng tay.
+- Lắng nghe sự kiện "show.bs.modal": event.relatedTarget chính là phần tử
+  vừa được click (vùng ảnh có data-*), đọc dataset để hiển thị.
+- Lưu id/name hiện tại vào dataset của chính modal để 2 nút Add to Cart/
+  Add to Wishlist bên trong modal biết đang thao tác với sản phẩm nào.
+*/
+// =======================================================
+
+function bindQuickViewModal() {
+
+    const modalEl = document.getElementById("quickViewModal");
+
+    if (!modalEl || typeof bootstrap === "undefined") return;
+
+    modalEl.addEventListener("show.bs.modal", (event) => {
+
+        const trigger = event.relatedTarget;
+
+        if (!trigger) return;
+
+        const { id, name, brand, price, saleprice, image, badge } = trigger.dataset;
+
+        document.getElementById("quickViewLabel").textContent = name;
+        document.getElementById("quickViewName").textContent = name;
+        document.getElementById("quickViewBrand").textContent = brand;
+        document.getElementById("quickViewImage").src = image;
+        document.getElementById("quickViewImage").alt = name;
+        document.getElementById("quickViewOriginalPrice").textContent = `$${Number(price).toFixed(2)}`;
+        document.getElementById("quickViewSalePrice").textContent = `$${Number(saleprice).toFixed(2)}`;
+
+        const badgeEl = document.getElementById("quickViewBadge");
+
+        if (badge) {
+            badgeEl.textContent = badge;
+            badgeEl.className = `badge mb-2 ${getBadgeClass(badge)}`;
+            badgeEl.style.display = "inline-block";
+        } else {
+            badgeEl.style.display = "none";
+        }
+
+        modalEl.dataset.currentId = id;
+        modalEl.dataset.currentName = name;
+
+    });
+
+    document.getElementById("quickViewAddToCart")?.addEventListener("click", () => {
+
+        showToast(`Đã thêm "${modalEl.dataset.currentName}" vào giỏ hàng 🛒`);
+
+    });
+
+    document.getElementById("quickViewAddToWishlist")?.addEventListener("click", () => {
+
+        const id = Number(modalEl.dataset.currentId);
+
+        toggleWishlist(id);
+
+        renderLiveShows();
+
+        renderProducts(currentCategory);
+
+        renderOpportunityProducts();
+
+        showToast(
+            isWishlist(id)
+                ? "Đã thêm vào Wishlist ❤️"
+                : "Đã bỏ khỏi Wishlist"
+        );
+
+    });
+
+}
+
+
+function bindMobileMenuAutoFocus() {
+
+    const offcanvasEl = document.getElementById("mobileMenu");
+
+    if (!offcanvasEl) return;
+
+    offcanvasEl.addEventListener("shown.bs.offcanvas", () => {
+
+        offcanvasEl.querySelector('input[type="search"]')?.focus();
+
+    });
+
+}
+
 
 // =============================
 // BIẾN TRẠNG THÁI
@@ -456,7 +765,7 @@ function renderProducts(category = "all") {
         : products.filter(product => product.category === category);
 
     productGrid.innerHTML = productList
-        .map(createProductCard)
+        .map(product => createProductCard(product))
         .join("");
 
     initGridCarousel(productGrid, document.getElementById("buyingDots"));
@@ -598,47 +907,12 @@ Tách riêng để không phải sửa cấu trúc products[] hiện có.
 */
 // =======================================================
 
-function createOpportunityCard(product) {
-
-    return `
-
-    <article class="product-card opportunity-card">
-
-        ${product.badge
-            ? `<span class="product-badge ${getBadgeClass(product.badge)}">${escapeHTML(product.badge)}</span>`
-            : ""}
-
-        <div class="product-image">
-
-            <img
-                src="${encodeURI(product.image)}"
-                alt="${escapeHTML(product.name)}">
-
-        </div>
-
-        <div class="product-info">
-
-            <p class="product-brand">${escapeHTML(product.brand)}</p>
-
-            <h3 class="product-name">
-                ${escapeHTML(product.name)}
-            </h3>
-
-            <div class="product-price">
-
-                <del class="original-price">$${Number(product.price).toFixed(2)}</del>
-
-                <span class="sale-price">$${Number(product.salePrice).toFixed(2)}</span>
-
-            </div>
-
-        </div>
-
-    </article>
-
-    `;
-
-}
+/*
+Ghi chú: createOpportunityCard() cũ đã bị gộp vào createProductCard() vì
+opportunityProducts[] có đúng cấu trúc field (id, brand, badge, name, price,
+salePrice, image) như products[] — không cần viết lại HTML 2 lần.
+Xem renderOpportunityProducts() bên dưới, chỉ đổi colClass + extraClass.
+*/
 
 
 // =======================================================
@@ -660,7 +934,10 @@ function renderOpportunityProducts() {
     if (!opportunityGrid) return;
 
     opportunityGrid.innerHTML = opportunityProducts
-        .map(createOpportunityCard)
+        .map(product => createProductCard(product, {
+            colClass: "col-12 col-sm-6 col-lg-4",
+            extraClass: "opportunity-card"
+        }))
         .join("");
 
     initGridCarousel(opportunityGrid, document.getElementById("opportunityDots"));
@@ -1245,6 +1522,12 @@ function init() {
     renderInstagramFeed();
 
     renderFooterLinks();
+
+    bindCartEvents();
+
+    bindQuickViewModal();
+
+    bindMobileMenuAutoFocus();
 
 }
 

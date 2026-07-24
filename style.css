@@ -885,11 +885,64 @@ button{
     z-index:1;
 }
 
-/* Màu badge theo loại */
-.badge-onair{ background:#ff3b30; }      /* đỏ */
-.badge-new{ background:#2ecc71; }        /* xanh lá */
-.badge-bestseller{ background:#2f6fed; } /* xanh dương */
-.badge-default{ background:#2f6fed; }
+/* Màu badge theo loại (color:#fff để dùng lại được cho <span class="badge"> của Bootstrap trong Modal Quick View) */
+.badge-onair{ background:#ff3b30; color:#fff; }      /* đỏ */
+.badge-new{ background:#2ecc71; color:#fff; }        /* xanh lá */
+.badge-bestseller{ background:#2f6fed; color:#fff; } /* xanh dương */
+.badge-default{ background:#2f6fed; color:#fff; }
+
+/* ================= QUICK VIEW LABEL (hiện khi hover vào ảnh sản phẩm) ================= */
+
+.quick-view-trigger{
+    cursor:pointer;
+}
+
+.quick-view-label{
+    position:absolute;
+    left:50%;
+    bottom:6px;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,.75);
+    color:#fff;
+    font-size:11px;
+    font-weight:600;
+    padding:5px 12px;
+    border-radius:999px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease;
+}
+
+.quick-view-trigger:hover .quick-view-label,
+.quick-view-trigger:focus-visible .quick-view-label{
+    opacity:1;
+}
+
+/* Trên thiết bị cảm ứng (không có hover) luôn hiện sẵn label để người dùng biết có thể bấm */
+@media (hover: none){
+    .quick-view-label{
+        opacity:1;
+        bottom:4px;
+        font-size:10px;
+        padding:4px 10px;
+    }
+}
+
+/* ================= MOBILE MENU TOGGLE (nút hamburger mở Offcanvas) ================= */
+
+.mobile-menu-toggle{
+    border:none;
+    background:none;
+}
+
+.mobile-menu-toggle i{
+    font-size:20px;
+}
+
+.offcanvas .logo{
+    font-size:32px;
+}
 
 @media (max-width:860px){
 
@@ -1682,6 +1735,7 @@ button{
 
 .carousel-dots{
     display:none;
+    position:relative;
     justify-content:center;
     align-items:center;
     gap:8px;
@@ -1696,13 +1750,25 @@ button{
     border:none;
     padding:0;
     cursor:pointer;
-    transition:.2s;
 }
 
+/* Chấm active giờ chỉ cần "ẩn" màu nền của nó đi (opacity 0) vì đã có
+   .carousel-dot-indicator nằm đè lên trên đóng vai trò chấm to màu hồng đậm */
 .carousel-dot.active{
-    background:#ff2cbf;
+    opacity:0;
+}
+
+.carousel-dot-indicator{
+    position:absolute;
+    top:0;
+    left:0;
     width:9px;
     height:9px;
+    border-radius:50%;
+    background:#ff2cbf;
+    pointer-events:none;
+    z-index:1;
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
 }
 
 /* =================================================================
@@ -1756,6 +1822,44 @@ button{
 
     .carousel-dots{
         display:flex;
+    }
+
+    /* =================================================================
+       Live Show Favorites / Opportunity Products / Buying Now:
+       trên desktop 3 khu này dùng Bootstrap Grid (row + col-*) để xếp cột,
+       nhưng trên mobile override lại thành carousel vuốt ngang có snap,
+       y hệt cơ chế của .brands-grid — dùng chung initGridCarousel() trong app.js.
+       ================================================================= */
+
+    #liveShowGrid,
+    #opportunityGrid,
+    #productGrid{
+        display:flex;
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        scroll-snap-type:x mandatory;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+    }
+
+    #liveShowGrid::-webkit-scrollbar,
+    #opportunityGrid::-webkit-scrollbar,
+    #productGrid::-webkit-scrollbar{
+        display:none;
+    }
+
+    /* Đè lại col-12 (100% width) của Bootstrap thành 1 "trang" carousel.
+       Vẫn giữ nguyên padding gutter mặc định của g-3 để 2 thẻ cạnh nhau
+       có khoảng cách, không cần tự thêm gap riêng. */
+    #liveShowGrid > div,
+    #productGrid > div{
+        flex:0 0 82%;
+        scroll-snap-align:start;
+    }
+
+    #opportunityGrid > div{
+        flex:0 0 72%;
+        scroll-snap-align:start;
     }
 
 }
