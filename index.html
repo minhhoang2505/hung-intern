@@ -2,18 +2,17 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Test</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
 <div class="announcement-bar">
-
     <div class="announcement-track">
         <span>Complimentary shipping on all orders above $200</span>
         <span class="divider">✦</span>
@@ -21,9 +20,7 @@
         <span class="divider">✦</span>
         <span>Members enjoy 10% off their first order</span>
     </div>
-
 </div>
-
 <header class="header">
     <div class="header-container">
         <a href="#" class="logo">seoulive</a>
@@ -33,293 +30,167 @@
                 <i class="fa-solid fa-magnifying-glass"></i>
             </button>
         </form>
-
         <div class="header-actions">
-
-            <a href="#" class="action-item">
-
+            <!-- Icon search: chỉ hiện trên mobile vì .search-form (ô nhập) đã bị ẩn ở breakpoint này -->
+            <button
+                class="action-item mobile-search-toggle d-md-none"
+                type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#mobileMenu"
+                aria-controls="mobileMenu"
+                aria-label="Search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+            <a href="#" class="action-item d-none d-md-flex">
                 <i class="fa-regular fa-heart"></i>
-
                 <span>Wishlist</span>
-
             </a>
-
             <a href="#" class="action-item">
-
                 <i class="fa-solid fa-cart-shopping"></i>
-
                 <span>Cart</span>
-
             </a>
-
-            <a href="#" class="action-item">
-
+            <a href="#" class="action-item d-none d-md-flex">
                 <i class="fa-regular fa-user"></i>
-
                 <span>Account</span>
-
             </a>
-
+            <button
+                class="action-item mobile-menu-toggle d-md-none"
+                type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#mobileMenu"
+                aria-controls="mobileMenu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
         </div>
-
     </div>
-
 </header>
-
-<nav class="navigation">
-
-    <div class="navigation-container">
-
-        <button class="category-btn">
-
-            <i class="fa-solid fa-bars"></i>
-
-            <span>Categories</span>
-
-        </button>
-
-        <ul class="nav-menu">
-
-            <li>
-                <a href="#" class="active">
-                    Home
-                </a>
-            </li>
-
-            <li>
-                <a href="#">On Air</a>
-            </li>
-
-            <li>
-                <a href="#">Shop</a>
-            </li>
-
-            <li>
-                <a href="#">Brands</a>
-            </li>
-
-            <li>
-                <a href="#">Sales</a>
-            </li>
-
-            <li>
-                <a href="#">Contact</a>
-            </li>
-        </ul>
-    </div>
-</nav>
 <section class="hero-section">
-
     <div class="container">
         <div class="hero"></div>
     </div>
-
 </section>
-
-
-<section class="live-show">
-
-    <div class="container">
-
-        <div class="section-header">
-
-            <h2>Live Shows Favorites</h2>
-
-            <a href="#" class="view-all">View All Products</a>
-
+<section class="products-status-section d-none" id="productsStatusSection">
+    <div class="container text-center py-5">
+        <div class="spinner-border text-danger" role="status" id="productsSpinner">
+            <span class="visually-hidden">Đang tải...</span>
         </div>
-
-        <div id="liveShowGrid" class="product-grid"></div>
-
-        <div class="carousel-dots" id="liveShowDots"></div>
-
+        <p class="mt-3 mb-2" id="productsStatusText">Đang tải dữ liệu...</p>
+        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="productsRetryBtn">
+            Thử lại
+        </button>
     </div>
-
 </section>
-
+<section class="live-show">
+    <div class="container">
+        <div class="section-header">
+            <h2>Live Shows Favorites</h2>
+            <a href="#" class="view-all">View All Products</a>
+        </div>
+        <div id="liveShowGrid" class="row g-3"></div>
+        <div class="carousel-dots" id="liveShowDots"></div>
+    </div>
+</section>
 <section class="live-opportunity">
-
     <div class="container live-opportunity-inner">
-
         <div class="stream-card">
-
             <div class="stream-thumb" id="stream-thumb">
-
                 <div class="stream-top">
                     <span class="stream-tag" id="stream-tag">Đang tải…</span>
                 </div>
-
                 <div class="stream-meta">
                     <span class="pill pill-replay">REPLAY</span>
                     <span class="pill pill-count"><i class="fa-solid fa-play"></i> 3.2K</span>
                     <span class="pill pill-live"><i class="dot"></i>LIVE</span>
                     <span class="pill pill-viewers"><span id="viewer-count">0</span> Viewers</span>
                 </div>
-
                 <button class="mute-btn" aria-label="Bật/tắt tiếng">
                     <i class="fa-solid fa-volume-xmark"></i>
                 </button>
-
                 <button class="like-btn" id="like-btn" aria-label="Thả tim">
                     <i class="fa-regular fa-heart"></i>
                 </button>
-
-            </div>
-
+            </div> 
             <div class="chat-overlay" id="chat-lines"></div>
-
             <div class="stream-bottom">
                 <input class="chat-input" type="text" placeholder="Please enter your message" disabled />
                 <button class="chat-help" aria-label="Trợ giúp">?</button>
             </div>
-
             <div class="progress-row">
                 <div class="progress-bar"><span></span></div>
                 <span class="time-label">
                     <span id="stream-elapsed">0:00</span>/<span id="stream-total">0:00</span>
                 </span>
             </div>
-
         </div>
-
         <div class="opportunity-content">
-
             <h2>Don't miss this opportunity today!</h2>
-
             <p class="opportunity-sub">
                 Watch real moments from our livestreams — no filters, just honest reactions.
             </p>
-
             <a href="#" class="join-live-btn">Join Live Now</a>
-
-            <div id="opportunityGrid" class="product-grid opportunity-grid"></div>
-
+            <div id="opportunityGrid" class="row g-3"></div>
             <div class="carousel-dots" id="opportunityDots"></div>
-
         </div>
-
     </div>
-
-
 </section>
-
-
 <section class="buying-now">
-
     <div class="container">
-
         <div class="buying-header">
-
             <h2>What Everyone Is Buying Right Now</h2>
-
-            <ul class="tabs">
-                <li><button class="tab" data-category="fashion">Fashion</button></li>
-                <li><button class="tab" data-category="lifestyle">Lifestyle</button></li>
-                <li><button class="tab" data-category="tech">Tech</button></li>
-                <li><button class="tab" data-category="home">Home</button></li>
-                <li><button class="tab" data-category="accessories">Accessories</button></li>
-                <li><button class="tab active" data-category="all">View all</button></li>
+            <ul class="tabs" id="tabsList">
             </ul>
-
         </div>
-
-        <div id="productGrid" class="product-grid buying-grid"></div>
-
+        <div id="productGrid" class="row g-3"></div>
         <div class="carousel-dots" id="buyingDots"></div>
-
         <div class="view-all-wrap">
             <a href="#" class="view-all-btn">View All Products</a>
         </div>
-
     </div>
-
 </section>
-
-
 <section class="trusted-brands">
-
     <div class="container">
-
         <div class="trusted-header">
-
             <div>
                 <h2>Trusted by Leading Brands</h2>
                 <p class="trusted-sub">
                     Brands partner with Seoulive to launch products through high-converting livestream campaigns.
                 </p>
             </div>
-
             <a href="#" class="explore-brands-btn">Explore All Brands</a>
-
         </div>
-
         <div id="brandsGrid" class="brands-grid"></div>
-
         <div class="carousel-dots" id="brandsDots"></div>
-
     </div>
-
 </section>
-
-
 <section class="new-arrivals">
-
     <div class="container">
-
         <h2>New Arrivals</h2>
-
         <div id="arrivalsGrid" class="arrivals-grid"></div>
-
     </div>
-
 </section>
-
-
 <section class="trending-now">
-
     <div class="container">
-
         <h2>Trending now, popular</h2>
-
         <div class="trending-content">
-
             <article class="trending-spotlight" id="trendingSpotlight"></article>
-
             <ol class="trending-rank-list" id="trendingRankList"></ol>
-
         </div>
-
     </div>
-
 </section>
-
-
 <section class="instagram-feed">
-
     <div class="container">
-
         <h2>#seoulive</h2>
-
         <div id="instagramGrid" class="instagram-grid"></div>
-
     </div>
-
 </section>
-
-
 <footer class="site-footer">
-
     <div class="container footer-top">
-
         <div class="footer-newsletter">
-
             <h3>Stay in the loop with our weekly newsletter</h3>
-
             <form class="newsletter-form">
                 <input type="email" placeholder="Your email" required>
                 <button type="submit">Subscribe</button>
             </form>
-
             <p class="footer-follow">
                 Follow us on:
                 <span class="social-icons">
@@ -329,19 +200,12 @@
                     <a href="#" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>
                 </span>
             </p>
-
         </div>
-
         <div id="footerLinks" class="footer-links"></div>
-
     </div>
-
     <div class="footer-bottom">
-
         <div class="container footer-bottom-inner">
-
             <p>© 2026 SEOULIVE.</p>
-
             <div class="payment-icons">
                 <i class="fa-brands fa-cc-visa"></i>
                 <i class="fa-brands fa-cc-paypal"></i>
@@ -350,15 +214,52 @@
                 <i class="fa-brands fa-cc-amex"></i>
                 <i class="fa-brands fa-apple-pay"></i>
             </div>
-
         </div>
-
     </div>
-
 </footer>
-
-
-<script src="data.js"></script>
+<div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickViewLabel">Quick View</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4 align-items-center">
+                    <div class="col-12 col-md-5 text-center">
+                        <span id="quickViewBadge" class="badge mb-2"></span>
+                        <img id="quickViewImage" src="" alt="" class="img-fluid rounded">
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <p class="product-brand mb-1" id="quickViewBrand"></p>
+                        <h4 id="quickViewName" class="mb-3"></h4>
+                        <p class="fs-5 mb-4">
+                            <del class="original-price me-2" id="quickViewOriginalPrice"></del>
+                            <span class="sale-price" id="quickViewSalePrice"></span>
+                        </p>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-dark" id="quickViewAddToCart">
+                                <i class="fa-solid fa-cart-shopping me-2"></i>Add to Cart
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="quickViewAddToWishlist">
+                                <i class="fa-regular fa-heart me-2"></i>Add to Wishlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090">
+    <div id="appToast" class="toast align-items-center text-white bg-dark border-0" role="status" aria-live="polite" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="appToastBody">Đã cập nhật.</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

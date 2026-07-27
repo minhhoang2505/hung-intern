@@ -6,9 +6,24 @@
     box-sizing:border-box;
 }
 
+html{
+    -webkit-text-size-adjust:100%;
+}
+
+html,
+body{
+    max-width:100%;
+    overflow-x:hidden;
+}
+
 body{
     font-family:"Poppins",sans-serif;
     color:#222;
+}
+
+img{
+    max-width:100%;
+    display:block;
 }
 
 a{
@@ -73,6 +88,19 @@ button{
     display:flex;
     justify-content:space-between;
     align-items:center;
+}
+
+.header-container > *{
+    min-width:0;
+}
+
+.opportunity-content h2,
+.section-header h2,
+.buying-header h2,
+.trusted-header h2,
+.new-arrivals h2,
+.trending-now h2{
+    overflow-wrap:break-word;
 }
 
 /* ================= LOGO ================= */
@@ -314,6 +342,62 @@ button{
     }
 
 }
+
+@media(max-width:480px){
+
+    .announcement-track{
+        gap:12px;
+        font-size:10px;
+        padding:0 12px;
+        text-align:center;
+    }
+
+    .header-container{
+        height:60px;
+        padding:0 12px;
+        padding-left:calc(12px + env(safe-area-inset-left));
+        padding-right:calc(12px + env(safe-area-inset-right));
+    }
+
+    .logo{
+        font-size:30px;
+        letter-spacing:-2px;
+    }
+
+    .header-actions{
+        gap:16px;
+    }
+
+    .action-item{
+        font-size:10px;
+        gap:3px;
+    }
+
+    .action-item i{
+        font-size:17px;
+    }
+
+    .navigation-container{
+        padding:0 12px;
+    }
+
+    .category-btn{
+        width:auto;
+        padding:0 14px;
+        white-space:nowrap;
+    }
+
+    .nav-menu{
+        gap:16px;
+        margin-left:16px;
+    }
+
+    .nav-menu a{
+        font-size:12.5px;
+        white-space:nowrap;
+    }
+
+}
 .container{
 
     max-width:1280px;
@@ -413,16 +497,13 @@ button{
 
 .hero{
     width:100%;
-    border-radius: 20px;
+    aspect-ratio:16/7;
+    border-radius:20px;
     overflow:hidden;
-    height:650px;
     background-image:url("img/clipbg.jpg");
     background-size:cover;
-    background-position:center;
+    background-position:center center;
     background-repeat:no-repeat;
-    position:relative;
-    margin-bottom: 50px;
-    margin-top: 40px;
 }
 .product-price{
     display:flex;
@@ -540,6 +621,10 @@ button{
     grid-template-columns:340px 1fr;
     gap:56px;
     align-items:start;
+}
+
+.live-opportunity-inner > *{
+    min-width:0;
 }
 
 /* ---------- Khung livestream ---------- */
@@ -800,11 +885,53 @@ button{
     z-index:1;
 }
 
-/* Màu badge theo loại */
-.badge-onair{ background:#ff3b30; }      /* đỏ */
-.badge-new{ background:#2ecc71; }        /* xanh lá */
-.badge-bestseller{ background:#2f6fed; } /* xanh dương */
-.badge-default{ background:#2f6fed; }
+.badge-onair{ background:#ff3b30; color:#fff; }      /* đỏ */
+.badge-new{ background:#2ecc71; color:#fff; }        /* xanh lá */
+.badge-bestseller{ background:#2f6fed; color:#fff; } /* xanh dương */
+.badge-default{ background:#2f6fed; color:#fff; }
+
+/* ================= QUICK VIEW LABEL (hiện khi hover vào ảnh sản phẩm) ================= */
+
+.quick-view-trigger{
+    cursor:pointer;
+}
+
+.quick-view-label{
+    position:absolute;
+    left:50%;
+    bottom:6px;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,.75);
+    color:#fff;
+    font-size:11px;
+    font-weight:600;
+    padding:5px 12px;
+    border-radius:999px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease;
+}
+
+.quick-view-trigger:hover .quick-view-label,
+.quick-view-trigger:focus-visible .quick-view-label{
+    opacity:1;
+}
+
+@media (hover: none){
+    .quick-view-label{
+        opacity:1;
+        bottom:4px;
+        font-size:10px;
+        padding:4px 10px;
+    }
+}
+
+/* ================= MOBILE MENU TOGGLE (nút hamburger mở Offcanvas) ================= */
+
+.offcanvas .logo{
+    font-size:32px;
+}
 
 @media (max-width:860px){
 
@@ -1135,11 +1262,12 @@ button{
 
 }
 
-@media (max-width:576px){
+@media(max-width:576px){
 
     .hero{
-        height:320px;
-        border-radius:14px;
+    aspect-ratio:1.2/1;
+    border-radius:14px;
+    background-position:center;
     }
 
     .container{
@@ -1239,6 +1367,10 @@ button{
     grid-template-columns:380px 1fr;
     gap:32px;
     align-items:start;
+}
+
+.trending-content > *{
+    min-width:0;
 }
 
 .trending-spotlight{
@@ -1396,6 +1528,10 @@ button{
     padding:60px 20px;
 }
 
+.footer-top > *{
+    min-width:0;
+}
+
 .footer-newsletter h3{
     font-size:20px;
     font-weight:700;
@@ -1498,6 +1634,7 @@ button{
     justify-content:space-between;
     align-items:center;
     padding:20px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
     flex-wrap:wrap;
     gap:12px;
 }
@@ -1587,6 +1724,7 @@ button{
 
 .carousel-dots{
     display:none;
+    position:relative;
     justify-content:center;
     align-items:center;
     gap:8px;
@@ -1601,20 +1739,25 @@ button{
     border:none;
     padding:0;
     cursor:pointer;
-    transition:.2s;
 }
 
 .carousel-dot.active{
-    background:#ff2cbf;
-    width:9px;
-    height:9px;
+    opacity:0;
 }
 
-/* =================================================================
-   CHẾ ĐỘ CAROUSEL TRÊN MOBILE
-   (chuyển product-grid/brands-grid từ dạng lưới nhiều cột
-   sang cuộn ngang có snap, hiện chấm điều hướng bên dưới)
-   ================================================================= */
+.carousel-dot-indicator{
+    position:absolute;
+    top:0;
+    left:0;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#ff2cbf;
+    pointer-events:none;
+    z-index:1;
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+}
+
 
 @media (max-width:700px){
 
@@ -1663,6 +1806,34 @@ button{
         display:flex;
     }
 
+
+    #liveShowGrid,
+    #opportunityGrid,
+    #productGrid{
+        display:flex;
+        flex-wrap:nowrap;
+        overflow-x:auto;
+        scroll-snap-type:x mandatory;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+    }
+
+    #liveShowGrid::-webkit-scrollbar,
+    #opportunityGrid::-webkit-scrollbar,
+    #productGrid::-webkit-scrollbar{
+        display:none;
+    }
+    #liveShowGrid > div,
+    #productGrid > div{
+        flex:0 0 82%;
+        scroll-snap-align:start;
+    }
+
+    #opportunityGrid > div{
+        flex:0 0 72%;
+        scroll-snap-align:start;
+    }
+
 }
 
 @media (max-width:420px){
@@ -1671,4 +1842,17 @@ button{
         flex:0 0 62%;
     }
 
+}
+
+/* =================================================================
+   TRẠNG THÁI TẢI DỮ LIỆU SẢN PHẨM (spinner / lỗi API)
+   ================================================================= */
+
+.products-status-section{
+    background:#fff9fb;
+}
+
+#productsStatusText{
+    font-size:14px;
+    font-weight:500;
 }
