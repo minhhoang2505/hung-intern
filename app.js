@@ -176,7 +176,14 @@ function showProductsError(message) {
         text.classList.add("text-danger");
     }
 }
+// requestId tăng dần mỗi lần gọi fetchProducts(). Dùng để nhận biết và BỎ QUA
+// kết quả của 1 lần gọi cũ (vd: request đầu bị chặn/mạng chậm, phản hồi trễ)
+// nếu lúc nó về thì đã có 1 lần gọi MỚI hơn (bấm "Thử lại") — tránh tình trạng
+// request cũ về sau ghi đè giao diện đã load thành công của request mới.
+let fetchRequestId = 0;
+
 async function fetchProducts() {
+    const requestId = ++fetchRequestId;
     showProductsLoading();
     try {
         const response = await fetch("https://dummyjson.com/products?limit=20");
@@ -185,14 +192,22 @@ async function fetchProducts() {
         }
         const data = await response.json();   
         console.log("DummyJSON /products response:", data);
+
+        // Đã có 1 lần gọi mới hơn xảy ra sau lần này -> kết quả này đã lỗi thời, bỏ qua.
+        if (requestId !== fetchRequestId) return;
+
         products = data.products.map(mapApiProductToInternal);
         hideProductsStatus();
         renderCategoryTabs(products);
         renderLiveShows();
         renderProducts("all");
     } catch (error) {
+
+        // Cùng lý do: lỗi của 1 request cũ đã bị thay thế thì không hiển thị nữa.
+        if (requestId !== fetchRequestId) return;
+
         console.error("Lỗi khi gọi API sản phẩm:", error);
-        showProductsError("Lỗi kết nối máy chủ, vui lòng thử lại.");
+        showProductsError(`Lỗi kết nối máy chủ, vui lòng thử lại. (${error.message})`);
     }
 }
 // =============================
@@ -790,4 +805,4 @@ document.getElementById("productsRetryBtn")?.addEventListener("click", fetchProd
 // =============================
 // KHỞI CHẠY ỨNG DỤNG
 // =============================
-init();logo
+init();
