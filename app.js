@@ -20,35 +20,6 @@ const STREAM = {
         "Haha"
     ]
 };
-const opportunityProducts = [
-    {
-        id: 101,
-        brand: "Test",
-        badge: "BEST SELLER",
-        name: "Test 101",
-        price: 15.50,
-        salePrice: 15,
-        image: "img/placeholder.jpg"
-    },
-    {
-        id: 102,
-        brand: "Test",
-        badge: null,
-        name: "Test 102",
-        price: 15.50,
-        salePrice: 15.20,
-        image: "img/placeholder.jpg"
-    },
-    {
-        id: 103,
-        brand: "Test",
-        badge: null,
-        name: "Test 103",
-        price: 15.50,
-        salePrice: 15.50,
-        image: "img/placeholder.jpg"
-    }
-];
 const brands = [
     {
         id: 1,
@@ -117,6 +88,34 @@ const footerColumns = [
     { title: "Need Some Help ?", links: ["Privacy Policy", "Shipping Info", "Return & Refund Policy", "Payment Methods"] }
 ];
 // =============================
+// KHU VỰC "CẮT" LAYOUT (Header / Footer dùng chung cho mọi trang)
+// =============================
+// Dùng fetch() để lấy nội dung 1 file HTML "component" (header.html/footer.html)
+// rồi nhúng (innerHTML) vào đúng vị trí placeholder trên trang.
+async function loadPartial(url, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        container.innerHTML = await response.text();
+    } catch (error) {
+        console.error(`Lỗi khi tải ${url}:`, error);
+    }
+}
+// Nhúng header.html vào đầu trang (#siteHeader) và footer.html vào cuối trang
+// (#siteFooter). Chạy song song bằng Promise.all và luôn được "await" ở init()
+// để đảm bảo các phần tử bên trong header/footer (VD: #footerLinks, #appToast)
+// đã tồn tại trên DOM trước khi các hàm render/bind khác chạy tới.
+async function loadLayout() {
+    await Promise.all([
+        loadPartial("header.html", "siteHeader"),
+        loadPartial("footer.html", "siteFooter")
+    ]);
+}
+// =============================
 // KHU VỰC GỌI API (Fetch + Async/Await + Loading + Error Handling)
 // =============================
 function mapApiProductToInternal(item) {
@@ -176,7 +175,14 @@ function showProductsError(message) {
         text.classList.add("text-danger");
     }
 }
+// requestId tăng dần mỗi lần gọi fetchProducts(). Dùng để nhận biết và BỎ QUA
+// kết quả của 1 lần gọi cũ (vd: request đầu bị chặn/mạng chậm, phản hồi trễ)
+// nếu lúc nó về thì đã có 1 lần gọi MỚI hơn (bấm "Thử lại") — tránh tình trạng
+// request cũ về sau ghi đè giao diện đã load thành công của request mới.
+let fetchRequestId = 0;
+
 async function fetchProducts() {
+    const requestId = ++fetchRequestId;
     showProductsLoading();
     try {
         const response = await fetch("https://dummyjson.com/products?limit=20");
@@ -185,14 +191,23 @@ async function fetchProducts() {
         }
         const data = await response.json();   
         console.log("DummyJSON /products response:", data);
+
+        // Đã có 1 lần gọi mới hơn xảy ra sau lần này -> kết quả này đã lỗi thời, bỏ qua.
+        if (requestId !== fetchRequestId) return;
+
         products = data.products.map(mapApiProductToInternal);
         hideProductsStatus();
         renderCategoryTabs(products);
         renderLiveShows();
+        renderOpportunityProducts();
         renderProducts("all");
     } catch (error) {
+
+        // Cùng lý do: lỗi của 1 request cũ đã bị thay thế thì không hiển thị nữa.
+        if (requestId !== fetchRequestId) return;
+
         console.error("Lỗi khi gọi API sản phẩm:", error);
-        showProductsError("Lỗi kết nối máy chủ, vui lòng thử lại.");
+        showProductsError(`Lỗi kết nối máy chủ, vui lòng thử lại. (${error.message})`);
     }
 }
 // =============================
@@ -321,17 +336,6 @@ function createProductCard(product, options = {}) {
         extraClass = ""
     } = options;
     const wished = isWishlist(product.id);
-    const quickViewData = `
-        data-bs-toggle="modal"
-        data-bs-target="#quickViewModal"
-        data-id="${product.id}"
-        data-name="${escapeHTML(product.name)}"
-        data-brand="${escapeHTML(product.brand ?? "")}"
-        data-price="${Number(product.price)}"
-        data-saleprice="${Number(product.salePrice)}"
-        data-image="${encodeURI(product.image)}"
-        data-badge="${escapeHTML(product.badge ?? "")}"
-    `;
     return `
     <div class="${colClass}">
         <article class="product-card mx-auto ${extraClass}">
@@ -344,12 +348,12 @@ function createProductCard(product, options = {}) {
                 data-id="${product.id}">
                 <i class="fa-heart ${wished ? "fa-solid" : "fa-regular"}"></i>
             </button>
-            <div class="product-image quick-view-trigger" role="button" ${quickViewData}>
+            <div class="product-image quick-view-trigger" role="button" data-id="${product.id}">
                 <img
                     src="${encodeURI(product.image)}"
                     alt="${escapeHTML(product.name)}">
                 <span class="quick-view-label">
-                    <i class="fa-regular fa-eye me-1"></i>Xem nhanh
+                    <i class="fa-regular fa-eye me-1"></i>Xem chi tiết
                 </span>
             </div>
             <div class="product-info">
@@ -427,52 +431,21 @@ function bindCartEvents() {
     });
 }
 // =============================
-// BOOTSTRAP: MODAL QUICK VIEW
+// DYNAMIC ROUTING: Click vào thẻ sản phẩm -> chuyển sang single.html?id=...
 // =============================
-function bindQuickViewModal() {
-    const modalEl = document.getElementById("quickViewModal");
-    if (!modalEl || typeof bootstrap === "undefined") return;
-    modalEl.addEventListener("show.bs.modal", (event) => {
-        const trigger = event.relatedTarget;
+// Giao tiếp giữa 2 trang HTML tĩnh (index.html -> single.html) thông qua
+// query string trên thanh địa chỉ URL, sẽ được single.html đọc lại bằng
+// URLSearchParams(window.location.search).
+let productNavigationBound = false;
+function bindProductCardNavigation() {
+    if (productNavigationBound) return;
+    productNavigationBound = true;
+    document.addEventListener("click", (event) => {
+        const trigger = event.target.closest(".quick-view-trigger");
         if (!trigger) return;
-        const { id, name, brand, price, saleprice, image, badge } = trigger.dataset;
-
-        document.getElementById("quickViewLabel").textContent = name;
-        document.getElementById("quickViewName").textContent = name;
-        document.getElementById("quickViewBrand").textContent = brand;
-        document.getElementById("quickViewImage").src = image;
-        document.getElementById("quickViewImage").alt = name;
-        document.getElementById("quickViewOriginalPrice").textContent = `$${Number(price).toFixed(2)}`;
-        document.getElementById("quickViewSalePrice").textContent = `$${Number(saleprice).toFixed(2)}`;
-
-        const badgeEl = document.getElementById("quickViewBadge");
-
-        if (badge) {
-            badgeEl.textContent = badge;
-            badgeEl.className = `badge mb-2 ${getBadgeClass(badge)}`;
-            badgeEl.style.display = "inline-block";
-        } else {
-            badgeEl.style.display = "none";
-        }
-        modalEl.dataset.currentId = id;
-        modalEl.dataset.currentName = name;
-    });
-
-    document.getElementById("quickViewAddToCart")?.addEventListener("click", () => {
-        showToast(`Đã thêm "${modalEl.dataset.currentName}" vào giỏ hàng 🛒`);
-    });
-    document.getElementById("quickViewAddToWishlist")?.addEventListener("click", () => {
-
-        const id = Number(modalEl.dataset.currentId);
-        toggleWishlist(id);
-        renderLiveShows();
-        renderProducts(currentCategory);
-        renderOpportunityProducts();
-        showToast(
-            isWishlist(id)
-                ? "Đã thêm vào Wishlist ❤️"
-                : "Đã bỏ khỏi Wishlist"
-        );
+        const id = trigger.dataset.id;
+        if (!id) return;
+        window.location.href = `single.html?id=${encodeURIComponent(id)}`;
     });
 }
 function bindMobileMenuAutoFocus() {
@@ -556,6 +529,11 @@ function formatTime(totalSeconds) {
 }
 function renderOpportunityProducts() {
     if (!opportunityGrid) return;
+    // Lấy 3 sản phẩm THẬT từ API (khác với 4 sản phẩm đã hiển thị ở Live Shows)
+    // thay vì dữ liệu test cứng ("Test 101/102/103") như trước đây.
+    const opportunityProducts = products
+        .filter(product => !product.isLiveShow)
+        .slice(0, 3);
     opportunityGrid.innerHTML = opportunityProducts
         .map(product => createProductCard(product, {
             colClass: "col-12 col-sm-6 col-lg-4",
@@ -767,27 +745,170 @@ function renderFooterLinks() {
         </div>
     `).join("");
 }
-function init() {
+// =============================
+// KHU VỰC "TRANG CHI TIẾT SẢN PHẨM" (single.html)
+// Đọc ?id= trên URL (URLSearchParams) -> fetch đúng 1 sản phẩm -> render
+// =============================
+function showSingleLoading() {
+    const section = document.getElementById("singleStatusSection");
+    const spinner = document.getElementById("singleSpinner");
+    const text = document.getElementById("singleStatusText");
+    const retryBtn = document.getElementById("singleRetryBtn");
+    if (!section) return;
+    document.getElementById("singleProductContent")?.classList.add("d-none");
+    section.classList.remove("d-none");
+    spinner?.classList.remove("d-none");
+    retryBtn?.classList.add("d-none");
+    if (text) {
+        text.textContent = "Đang tải dữ liệu...";
+        text.classList.remove("text-danger");
+        text.classList.add("text-muted");
+    }
+}
+function hideSingleStatus() {
+    document.getElementById("singleStatusSection")?.classList.add("d-none");
+}
+function showSingleError(message) {
+    const section = document.getElementById("singleStatusSection");
+    const spinner = document.getElementById("singleSpinner");
+    const text = document.getElementById("singleStatusText");
+    const retryBtn = document.getElementById("singleRetryBtn");
+    if (!section) return;
+    document.getElementById("singleProductContent")?.classList.add("d-none");
+    section.classList.remove("d-none");
+    spinner?.classList.add("d-none");
+    retryBtn?.classList.remove("d-none");
+    if (text) {
+        text.textContent = message;
+        text.classList.remove("text-muted");
+        text.classList.add("text-danger");
+    }
+}
+function renderSingleProduct(item) {
+    const product = mapApiProductToInternal(item);
+
+    document.title = `${product.name} — Seoulive`;
+    const breadcrumb = document.getElementById("singleBreadcrumbName");
+    if (breadcrumb) breadcrumb.textContent = product.name;
+
+    const badgeEl = document.getElementById("singleBadge");
+    if (badgeEl) {
+        if (product.badge) {
+            badgeEl.textContent = product.badge;
+            badgeEl.className = `product-badge ${getBadgeClass(product.badge)}`;
+            badgeEl.classList.remove("d-none");
+        } else {
+            badgeEl.classList.add("d-none");
+        }
+    }
+
+    const imageEl = document.getElementById("singleImage");
+    if (imageEl) {
+        imageEl.src = encodeURI(product.image);
+        imageEl.alt = product.name;
+    }
+
+    document.getElementById("singleBrand").textContent = product.brand ?? "";
+    document.getElementById("singleName").textContent = product.name;
+    document.getElementById("singleRating").innerHTML =
+        `<i class="fa-solid fa-star text-warning"></i> ${Number(item.rating ?? 0).toFixed(1)}`;
+    document.getElementById("singleStock").textContent =
+        item.stock > 0 ? `Còn hàng (${item.stock})` : "Hết hàng";
+    document.getElementById("singleOriginalPrice").textContent = `$${Number(product.price).toFixed(2)}`;
+    document.getElementById("singleSalePrice").textContent = `$${Number(product.salePrice).toFixed(2)}`;
+    document.getElementById("singleDescription").textContent = item.description ?? "";
+
+    const addToCartBtn = document.getElementById("singleAddToCart");
+    if (addToCartBtn) {
+        addToCartBtn.onclick = () => showToast(`Đã thêm "${product.name}" vào giỏ hàng 🛒`);
+    }
+
+    const wishlistBtn = document.getElementById("singleWishlistBtn");
+    const wishlistIcon = document.getElementById("singleWishlistIcon");
+    const wishlistLabel = document.getElementById("singleWishlistLabel");
+    function syncWishlistUI() {
+        const wished = isWishlist(product.id);
+        if (wishlistIcon) wishlistIcon.className = `fa-heart me-2 ${wished ? "fa-solid" : "fa-regular"}`;
+        if (wishlistLabel) wishlistLabel.textContent = wished ? "Đã thích" : "Add to Wishlist";
+    }
+    syncWishlistUI();
+    if (wishlistBtn) {
+        wishlistBtn.onclick = () => {
+            toggleWishlist(product.id);
+            syncWishlistUI();
+            showToast(
+                isWishlist(product.id)
+                    ? "Đã thêm vào Wishlist ❤️"
+                    : "Đã bỏ khỏi Wishlist"
+            );
+        };
+    }
+}
+// requestId tăng dần: cùng lý do với fetchProducts(), tránh 1 request cũ
+// (VD: đổi id liên tục / bấm "Thử lại") ghi đè lên kết quả của request mới hơn.
+let singleFetchRequestId = 0;
+async function fetchSingleProduct() {
+    const requestId = ++singleFetchRequestId;
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) {
+        showSingleError("Không tìm thấy sản phẩm (thiếu ID trên URL).");
+        return;
+    }
+    showSingleLoading();
+    try {
+        const response = await fetch(`https://dummyjson.com/products/${encodeURIComponent(id)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const item = await response.json();
+        console.log("DummyJSON /products/:id response:", item);
+
+        if (requestId !== singleFetchRequestId) return;
+
+        renderSingleProduct(item);
+        hideSingleStatus();
+        document.getElementById("singleProductContent")?.classList.remove("d-none");
+    } catch (error) {
+        if (requestId !== singleFetchRequestId) return;
+
+        console.error("Lỗi khi gọi API chi tiết sản phẩm:", error);
+        showSingleError(`Lỗi kết nối máy chủ, vui lòng thử lại. (${error.message})`);
+    }
+}
+async function init() {
+    // Nhúng header.html / footer.html trước, vì các bước bên dưới (VD:
+    // renderFooterLinks, showToast) cần các phần tử nằm bên trong đó.
+    await loadLayout();
+
     bindWishlistEvents();
-    bindTabEvents();
-    renderStream();
-    renderOpportunityProducts();
-    bindLikeButton();
-    startViewerTicker();
-    startClock();
-    renderBrands();
-    renderArrivals();
-    renderTrendingSpotlight();
-    renderTrendingRankList();
-    renderInstagramFeed();
-    renderFooterLinks();
     bindCartEvents();
-    bindQuickViewModal();
+    bindProductCardNavigation();
     bindMobileMenuAutoFocus();
-    fetchProducts();
+    renderFooterLinks();
+
+    if (document.getElementById("productGrid")) {
+        // Các phần chỉ có ở trang chủ (index.html)
+        bindTabEvents();
+        renderStream();
+        bindLikeButton();
+        startViewerTicker();
+        startClock();
+        renderBrands();
+        renderArrivals();
+        renderTrendingSpotlight();
+        renderTrendingRankList();
+        renderInstagramFeed();
+        fetchProducts();
+    }
+
+    if (document.getElementById("singleProductContent")) {
+        // Trang chi tiết sản phẩm (single.html)
+        fetchSingleProduct();
+    }
 }
 document.getElementById("productsRetryBtn")?.addEventListener("click", fetchProducts);
+document.getElementById("singleRetryBtn")?.addEventListener("click", fetchSingleProduct);
 // =============================
 // KHỞI CHẠY ỨNG DỤNG
 // =============================
-init();logo
+init();
