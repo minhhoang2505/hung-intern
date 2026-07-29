@@ -6,6 +6,10 @@ const IMG_BASE = (typeof seouliveData !== "undefined" && seouliveData.imgUrl)
     ? seouliveData.imgUrl
     : "img";
 
+function img(filename) {
+    return `${IMG_BASE}/${filename}`;
+}
+
 const liveShowGrid = document.getElementById("liveShowGrid");
 const productGrid = document.getElementById("productGrid");
 const opportunityGrid = document.getElementById("opportunityGrid");
@@ -17,7 +21,7 @@ const STREAM = {
     viewersStart: 1234,
     elapsedSeconds: 5678,
     totalSeconds: 91011,
-    thumbnail: `${IMG_BASE}/teststream.jpg`,
+    thumbnail: img("teststream.jpg"),
     chatLines: [
         "Hihi",
         "Hehe",
@@ -31,9 +35,9 @@ const brands = [
         name: "ANUA",
         description: "Famous for its product line made with heartleaf extract, which helps soothe the skin.",
         products: [
-            { name: "PDRN Hyaluronic Acid Capsule 100 Serum", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Niacinamide 10 TXA 4 Serum for Brightening and Dark Spots", price: 24.50, salePrice: null, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Heartleaf LHA Moisture Peeling Gel", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` }
+            { name: "PDRN Hyaluronic Acid Capsule 100 Serum", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") },
+            { name: "Niacinamide 10 TXA 4 Serum for Brightening and Dark Spots", price: 24.50, salePrice: null, image: img("placeholder.jpg") },
+            { name: "Heartleaf LHA Moisture Peeling Gel", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") }
         ]
     },
     {
@@ -42,9 +46,9 @@ const brands = [
         name: "ROM&ND",
         description: "Featuring lip tints and eyeshadows in trendy shades.",
         products: [
-            { name: "Glasting color gloss", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Color lip matte", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Better than cheek", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` }
+            { name: "Glasting color gloss", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") },
+            { name: "Color lip matte", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") },
+            { name: "Better than cheek", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") }
         ]
     },
     {
@@ -53,15 +57,15 @@ const brands = [
         name: "KAJA",
         description: "A convenient makeup brand with innovative packaging.",
         products: [
-            { name: "Beauty Bento", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Bento Pouch", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` },
-            { name: "Whipped Dream", price: 15.50, salePrice: 15.50, image: `${IMG_BASE}/placeholder.jpg` }
+            { name: "Beauty Bento", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") },
+            { name: "Bento Pouch", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") },
+            { name: "Whipped Dream", price: 15.50, salePrice: 15.50, image: img("placeholder.jpg") }
         ]
     }
 ];
 const newArrivalsBanners = [
-    { id: 1, title: "Shop What Influencers Are Selling — Live", image: `${IMG_BASE}/imgplaceholder.jpg` },
-    { id: 2, title: "Shop What Influencers Are Selling — Live", image: `${IMG_BASE}/imgplaceholder.jpg` }
+    { id: 1, title: "Shop What Influencers Are Selling — Live", image: img("imgplaceholder.jpg") },
+    { id: 2, title: "Shop What Influencers Are Selling — Live", image: img("imgplaceholder.jpg") }
 ];
 const trendingSpotlight = {
     brand: "KAINE",
@@ -71,7 +75,7 @@ const trendingSpotlight = {
     discountLabel: "sale 20%",
     viewingCount: 2553,
     countdownSeconds: 81365, // hiển thị dạng 22 : 36 : 05
-    image: `${IMG_BASE}/imgplaceholder.jpg`
+    image: img("imgplaceholder.jpg")
 };
 const trendingRankList = [
     { rank: 1, name: "Rosemary Relief Gel Cleanser" },
@@ -81,10 +85,10 @@ const trendingRankList = [
     { rank: 5, name: "Rosemary Relief Gel Cleanser" }
 ];
 const instagramFeed = [
-    `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`,
-    `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`,
-    `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`,
-    `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`, `${IMG_BASE}/imgplaceholder.jpg`
+    img("imgplaceholder.jpg"), img("imgplaceholder.jpg"), img("imgplaceholder.jpg"),
+    img("imgplaceholder.jpg"), img("imgplaceholder.jpg"), img("imgplaceholder.jpg"),
+    img("imgplaceholder.jpg"), img("imgplaceholder.jpg"), img("imgplaceholder.jpg"),
+    img("imgplaceholder.jpg"), img("imgplaceholder.jpg"), img("imgplaceholder.jpg")
 ];
 const footerColumns = [
     { title: "Information", links: ["Our Story", "Our Journal", "FAQ", "Contact Us"] },
@@ -151,7 +155,10 @@ function showProductsError(message) {
         text.classList.add("text-danger");
     }
 }
-
+// requestId tăng dần mỗi lần gọi fetchProducts(). Dùng để nhận biết và BỎ QUA
+// kết quả của 1 lần gọi cũ (vd: request đầu bị chặn/mạng chậm, phản hồi trễ)
+// nếu lúc nó về thì đã có 1 lần gọi MỚI hơn (bấm "Thử lại") — tránh tình trạng
+// request cũ về sau ghi đè giao diện đã load thành công của request mới.
 let fetchRequestId = 0;
 
 async function fetchProducts() {
@@ -176,7 +183,7 @@ async function fetchProducts() {
         renderProducts("all");
     } catch (error) {
 
-  
+        // Cùng lý do: lỗi của 1 request cũ đã bị thay thế thì không hiển thị nữa.
         if (requestId !== fetchRequestId) return;
 
         console.error("Lỗi khi gọi API sản phẩm:", error);
@@ -406,6 +413,9 @@ function bindCartEvents() {
 // =============================
 // DYNAMIC ROUTING: Click vào thẻ sản phẩm -> chuyển sang single.html?id=...
 // =============================
+// Giao tiếp giữa 2 trang HTML tĩnh (index.html -> single.html) thông qua
+// query string trên thanh địa chỉ URL, sẽ được single.html đọc lại bằng
+// URLSearchParams(window.location.search).
 let productNavigationBound = false;
 function bindProductCardNavigation() {
     if (productNavigationBound) return;
@@ -814,7 +824,8 @@ function renderSingleProduct(item) {
         };
     }
 }
-
+// requestId tăng dần: cùng lý do với fetchProducts(), tránh 1 request cũ
+// (VD: đổi id liên tục / bấm "Thử lại") ghi đè lên kết quả của request mới hơn.
 let singleFetchRequestId = 0;
 async function fetchSingleProduct() {
     const requestId = ++singleFetchRequestId;
@@ -845,7 +856,8 @@ async function fetchSingleProduct() {
     }
 }
 async function init() {
-    
+    // Header/Footer giờ được WordPress render sẵn trong HTML (qua get_header()/
+    // get_footer()), nên không cần fetch() nạp lại như bản HTML tĩnh trước đây.
     bindWishlistEvents();
     bindCartEvents();
     bindProductCardNavigation();
@@ -853,7 +865,7 @@ async function init() {
     renderFooterLinks();
 
     if (document.getElementById("productGrid")) {
-        
+        // Các phần chỉ có ở trang chủ (index.html)
         bindTabEvents();
         renderStream();
         bindLikeButton();
