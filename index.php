@@ -5,24 +5,19 @@
         <div class="hero"></div>
     </div>
 </section>
-<section class="products-status-section d-none" id="productsStatusSection">
-    <div class="container text-center py-5">
-        <div class="spinner-border text-danger" role="status" id="productsSpinner">
-            <span class="visually-hidden">Đang tải hẹ hẹ...</span>
-        </div>
-        <p class="mt-3 mb-2" id="productsStatusText">Đang tải dữ liệu...</p>
-        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="productsRetryBtn">
-            Thử lại
-        </button>
-    </div>
-</section>
 <section class="live-show">
     <div class="container">
         <div class="section-header">
             <h2>Live Shows Favorites</h2>
             <a href="#" class="view-all">View All Products</a>
         </div>
-        <div id="liveShowGrid" class="row g-3"></div>
+        <div id="liveShowGrid" class="row g-3">
+            <?php if ( have_posts() ) : ?>
+                <?php while ( have_posts() ) : the_post(); ?>
+                    <?php seoulive_product_card(); ?>
+                <?php endwhile; ?>
+            <?php endif; ?>
+        </div>
         <div class="carousel-dots" id="liveShowDots"></div>
     </div>
 </section>
@@ -64,7 +59,14 @@
                 Watch real moments from our livestreams — no filters, just honest reactions.
             </p>
             <a href="#" class="join-live-btn">Join Live Now</a>
-            <div id="opportunityGrid" class="row g-3"></div>
+            <?php rewind_posts(); ?>
+            <div id="opportunityGrid" class="row g-3">
+                <?php if ( have_posts() ) : ?>
+                    <?php while ( have_posts() ) : the_post(); ?>
+                        <?php seoulive_product_card(); ?>
+                    <?php endwhile; ?>
+                <?php endif; ?>
+            </div>
             <div class="carousel-dots" id="opportunityDots"></div>
         </div>
     </div>
@@ -73,10 +75,15 @@
     <div class="container">
         <div class="buying-header">
             <h2>What Everyone Is Buying Right Now</h2>
-            <ul class="tabs" id="tabsList">
-            </ul>
         </div>
-        <div id="productGrid" class="row g-3"></div>
+        <?php rewind_posts(); ?>
+        <div id="productGrid" class="row g-3">
+            <?php if ( have_posts() ) : ?>
+                <?php while ( have_posts() ) : the_post(); ?>
+                    <?php seoulive_product_card(); ?>
+                <?php endwhile; ?>
+            <?php endif; ?>
+        </div>
         <div class="carousel-dots" id="buyingDots"></div>
         <div class="view-all-wrap">
             <a href="#" class="view-all-btn">View All Products</a>

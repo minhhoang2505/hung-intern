@@ -2,9 +2,11 @@
 // BIẾN TOÀN CỤC
 // =============================
 
+
 const IMG_BASE = (typeof seouliveData !== "undefined" && seouliveData.imgUrl)
     ? seouliveData.imgUrl
     : "img";
+
 
 function img(filename) {
     return `${IMG_BASE}/${filename}`;
@@ -15,7 +17,6 @@ const productGrid = document.getElementById("productGrid");
 const opportunityGrid = document.getElementById("opportunityGrid");
 const brandsGrid = document.getElementById("brandsGrid");
 const WISHLIST_KEY = "wishlist";
-let products = [];
 const STREAM = {
     tag: "Test Live",
     viewersStart: 1234,
@@ -97,99 +98,11 @@ const footerColumns = [
 ];
 // =============================
 // KHU VỰC GỌI API (Fetch + Async/Await + Loading + Error Handling)
+// Chỉ còn dùng cho trang chi tiết sản phẩm (single.html -> fetchSingleProduct),
+// vì phần danh sách sản phẩm ở trang chủ giờ lấy từ WP Posts qua The Loop
+// (xem index.php + hàm seoulive_product_card() trong functions.php).
 // =============================
-function mapApiProductToInternal(item) {
-    const hasDiscount = item.discountPercentage > 0;
-    const salePrice = item.price;
-    const originalPrice = hasDiscount
-        ? salePrice / (1 - item.discountPercentage / 100)
-        : salePrice;
-    let badge = null;
-    if (item.discountPercentage >= 15) {
-        badge = "BEST SELLER";
-    } else if (item.rating >= 4.7) {
-        badge = "NEW";
-    }
-    return {
-        id: item.id,
-        brand: item.brand || item.category,
-        badge,
-        name: item.title,
-        price: Number(originalPrice.toFixed(2)),
-        salePrice: Number(salePrice.toFixed(2)),
-        category: item.category,
-        image: item.thumbnail,
-        isLiveShow: item.id <= 10
-    };
-}
-function showProductsLoading() {
-    const section = document.getElementById("productsStatusSection");
-    const spinner = document.getElementById("productsSpinner");
-    const text = document.getElementById("productsStatusText");
-    const retryBtn = document.getElementById("productsRetryBtn");
-    if (!section) return;
-    section.classList.remove("d-none");
-    spinner?.classList.remove("d-none");
-    retryBtn?.classList.add("d-none");
-    if (text) {
-        text.textContent = "Đang tải dữ liệu...";
-        text.classList.remove("text-danger");
-        text.classList.add("text-muted");
-    }
-}
-function hideProductsStatus() {
-    document.getElementById("productsStatusSection")?.classList.add("d-none");
-}
-function showProductsError(message) {
-    const section = document.getElementById("productsStatusSection");
-    const spinner = document.getElementById("productsSpinner");
-    const text = document.getElementById("productsStatusText");
-    const retryBtn = document.getElementById("productsRetryBtn");
-    if (!section) return;
-    section.classList.remove("d-none");
-    spinner?.classList.add("d-none");
-    retryBtn?.classList.remove("d-none");
-    if (text) {
-        text.textContent = message;
-        text.classList.remove("text-muted");
-        text.classList.add("text-danger");
-    }
-}
-// requestId tăng dần mỗi lần gọi fetchProducts(). Dùng để nhận biết và BỎ QUA
-// kết quả của 1 lần gọi cũ (vd: request đầu bị chặn/mạng chậm, phản hồi trễ)
-// nếu lúc nó về thì đã có 1 lần gọi MỚI hơn (bấm "Thử lại") — tránh tình trạng
-// request cũ về sau ghi đè giao diện đã load thành công của request mới.
-let fetchRequestId = 0;
 
-async function fetchProducts() {
-    const requestId = ++fetchRequestId;
-    showProductsLoading();
-    try {
-        const response = await fetch("https://dummyjson.com/products?limit=20");
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const data = await response.json();   
-        console.log("DummyJSON /products response:", data);
-
-        // Đã có 1 lần gọi mới hơn xảy ra sau lần này -> kết quả này đã lỗi thời, bỏ qua.
-        if (requestId !== fetchRequestId) return;
-
-        products = data.products.map(mapApiProductToInternal);
-        hideProductsStatus();
-        renderCategoryTabs(products);
-        renderLiveShows();
-        renderOpportunityProducts();
-        renderProducts("all");
-    } catch (error) {
-
-        // Cùng lý do: lỗi của 1 request cũ đã bị thay thế thì không hiển thị nữa.
-        if (requestId !== fetchRequestId) return;
-
-        console.error("Lỗi khi gọi API sản phẩm:", error);
-        showProductsError(`Lỗi kết nối máy chủ, vui lòng thử lại. (${error.message})`);
-    }
-}
 // =============================
 // KHU VỰC "CAROUSEL DOTS" (mobile)
 // =============================
@@ -310,85 +223,10 @@ function escapeHTML(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
 }
-function createProductCard(product, options = {}) {
-    const {
-        colClass = "col-12 col-sm-6 col-lg-3",
-        extraClass = ""
-    } = options;
-    const wished = isWishlist(product.id);
-    return `
-    <div class="${colClass}">
-        <article class="product-card mx-auto ${extraClass}">
-            ${product.badge
-                ? `<span class="product-badge ${getBadgeClass(product.badge)}">${escapeHTML(product.badge)}</span>`
-                : ""}
-            <button
-                class="wishlist-btn ${wished ? "active" : ""}"
-                data-action="wishlist"
-                data-id="${product.id}">
-                <i class="fa-heart ${wished ? "fa-solid" : "fa-regular"}"></i>
-            </button>
-            <div class="product-image quick-view-trigger" role="button" data-id="${product.id}">
-                <img
-                    src="${encodeURI(product.image)}"
-                    alt="${escapeHTML(product.name)}">
-                <span class="quick-view-label">
-                    <i class="fa-regular fa-eye me-1"></i>Xem chi tiết
-                </span>
-            </div>
-            <div class="product-info">
-                <p class="product-brand">${escapeHTML(product.brand ?? "")}</p>
-                <h3 class="product-name">${escapeHTML(product.name)}</h3>
-                <div class="product-price">
-                    <del class="original-price">$${Number(product.price).toFixed(2)}</del>
-                    <span class="sale-price">$${Number(product.salePrice).toFixed(2)}</span>
-                </div>
-            </div>
-            <button
-                type="button"
-                class="btn btn-outline-dark btn-sm w-100 mt-2"
-                data-action="cart"
-                data-id="${product.id}"
-                data-name="${escapeHTML(product.name)}">
-                <i class="fa-solid fa-cart-shopping me-1"></i>Add to Cart
-            </button>
-        </article>
-    </div>
-    `;
-}
-function renderLiveShows() {
-     if (!liveShowGrid) return;
-     const liveProducts = products
-        .filter(product => product.isLiveShow)
-        .slice(0, 4);
-      liveShowGrid.innerHTML = liveProducts
-        .map(product => createProductCard(product))
-        .join("");
-      initGridCarousel(liveShowGrid, document.getElementById("liveShowDots"));
-}
-let wishlistEventsBound = false;
-function bindWishlistEvents() {
-    if (wishlistEventsBound) return;
-    wishlistEventsBound = true;
-    document.addEventListener("click", handleWishlistClick);
-}
-function handleWishlistClick(event) {
-    const button = event.target.closest(".wishlist-btn");
-    if (!button) return;
-    const id = Number(button.dataset.id);
-    toggleWishlist(id);
-    const nowWished = isWishlist(id);
-    renderLiveShows();
-    renderProducts(currentCategory);
-    renderOpportunityProducts();
-    showToast(
-        nowWished
-            ? "Đã thêm vào Wishlist ❤️"
-            : "Đã bỏ khỏi Wishlist"
-    );
-}
 // =============================
 // BOOTSTRAP: TOAST (thông báo góc màn hình)
+// Vẫn giữ lại — dùng cho trang chi tiết sản phẩm (single.html), khi bấm
+// Add to Cart / Wishlist ở đó.
 // =============================
 function showToast(message) {
     const toastEl = document.getElementById("appToast");
@@ -397,104 +235,12 @@ function showToast(message) {
     const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2200 });
     toast.show();
 }
-// =============================
-// BOOTSTRAP: ADD TO CART
-// =============================]
-let cartEventsBound = false;
-function bindCartEvents() {
-    if (cartEventsBound) return;
-    cartEventsBound = true;
-    document.addEventListener("click", (event) => {
-        const button = event.target.closest('[data-action="cart"]');
-        if (!button) return;
-        showToast(`Đã thêm "${button.dataset.name}" vào giỏ hàng 🛒`);
-    });
-}
-// =============================
-// DYNAMIC ROUTING: Click vào thẻ sản phẩm -> chuyển sang single.html?id=...
-// =============================
-// Giao tiếp giữa 2 trang HTML tĩnh (index.html -> single.html) thông qua
-// query string trên thanh địa chỉ URL, sẽ được single.html đọc lại bằng
-// URLSearchParams(window.location.search).
-let productNavigationBound = false;
-function bindProductCardNavigation() {
-    if (productNavigationBound) return;
-    productNavigationBound = true;
-    document.addEventListener("click", (event) => {
-        const trigger = event.target.closest(".quick-view-trigger");
-        if (!trigger) return;
-        const id = trigger.dataset.id;
-        if (!id) return;
-        window.location.href = `single.html?id=${encodeURIComponent(id)}`;
-    });
-}
 function bindMobileMenuAutoFocus() {
     const offcanvasEl = document.getElementById("mobileMenu");
 
     if (!offcanvasEl) return;
     offcanvasEl.addEventListener("shown.bs.offcanvas", () => {
         offcanvasEl.querySelector('input[type="search"]')?.focus();
-    });
-}
-// =============================
-// BIẾN TRẠNG THÁI
-// =============================
-let currentCategory = "all";
-function renderProducts(category = "all") {
-
-    currentCategory = category;
-    if (!productGrid) return;
-    const productList =
-    category === "all"
-        ? products
-        : products.filter(product => product.category === category);
-    productGrid.innerHTML = productList
-        .map(product => createProductCard(product))
-        .join("");
-    initGridCarousel(productGrid, document.getElementById("buyingDots"));
-}
-function filterProducts(category) {
-    renderProducts(category);
-}
-function renderCategoryTabs(productList) {
-    const tabsList = document.getElementById("tabsList");
-    if (!tabsList) return;
-    const categories = [...new Set(productList.map(product => product.category))];
-    const formatLabel = (text) =>
-        text
-            .split("-")
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-
-    const allTab = `<li><button class="tab active" data-category="all">All</button></li>`;
-    const categoryTabs = categories
-        .map(category => `
-            <li>
-                <button class="tab" data-category="${escapeHTML(category)}">
-                    ${escapeHTML(formatLabel(category))}
-                </button>
-            </li>
-        `)
-        .join("");
-    tabsList.innerHTML = allTab + categoryTabs;
-}
-function updateActiveTab(activeTab) {
-    const tabs = document.querySelectorAll(".tab");
-    tabs.forEach(tab => {
-        tab.classList.remove("active");
-    });
-    activeTab.classList.add("active");
-}
-let tabEventsBound = false;
-function bindTabEvents() {
-    if (tabEventsBound) return;
-    tabEventsBound = true;
-    document.addEventListener("click", (event) => {
-        const tab = event.target.closest(".tab");
-        if (!tab) return;
-        const category = tab.dataset.category;
-        updateActiveTab(tab);
-        filterProducts(category);
     });
 }
 // =============================
@@ -506,21 +252,6 @@ function formatTime(totalSeconds) {
     const s = Math.floor(totalSeconds % 60);
     const pad = (n) => String(n).padStart(2, "0");
     return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
-function renderOpportunityProducts() {
-    if (!opportunityGrid) return;
-    // Lấy 3 sản phẩm THẬT từ API (khác với 4 sản phẩm đã hiển thị ở Live Shows)
-    // thay vì dữ liệu test cứng ("Test 101/102/103") như trước đây.
-    const opportunityProducts = products
-        .filter(product => !product.isLiveShow)
-        .slice(0, 3);
-    opportunityGrid.innerHTML = opportunityProducts
-        .map(product => createProductCard(product, {
-            colClass: "col-12 col-sm-6 col-lg-4",
-            extraClass: "opportunity-card"
-        }))
-        .join("");
-    initGridCarousel(opportunityGrid, document.getElementById("opportunityDots"));
 }
 function renderStream() {
     const streamThumb = document.getElementById("stream-thumb");
@@ -764,6 +495,31 @@ function showSingleError(message) {
         text.classList.add("text-danger");
     }
 }
+
+function mapApiProductToInternal(item) {
+    const hasDiscount = item.discountPercentage > 0;
+    const salePrice = item.price;
+    const originalPrice = hasDiscount
+        ? salePrice / (1 - item.discountPercentage / 100)
+        : salePrice;
+    let badge = null;
+    if (item.discountPercentage >= 15) {
+        badge = "BEST SELLER";
+    } else if (item.rating >= 4.7) {
+        badge = "NEW";
+    }
+    return {
+        id: item.id,
+        brand: item.brand || item.category,
+        badge,
+        name: item.title,
+        price: Number(originalPrice.toFixed(2)),
+        salePrice: Number(salePrice.toFixed(2)),
+        category: item.category,
+        image: item.thumbnail,
+        isLiveShow: item.id <= 10
+    };
+}
 function renderSingleProduct(item) {
     const product = mapApiProductToInternal(item);
 
@@ -824,8 +580,7 @@ function renderSingleProduct(item) {
         };
     }
 }
-// requestId tăng dần: cùng lý do với fetchProducts(), tránh 1 request cũ
-// (VD: đổi id liên tục / bấm "Thử lại") ghi đè lên kết quả của request mới hơn.
+
 let singleFetchRequestId = 0;
 async function fetchSingleProduct() {
     const requestId = ++singleFetchRequestId;
@@ -856,17 +611,12 @@ async function fetchSingleProduct() {
     }
 }
 async function init() {
-    // Header/Footer giờ được WordPress render sẵn trong HTML (qua get_header()/
-    // get_footer()), nên không cần fetch() nạp lại như bản HTML tĩnh trước đây.
-    bindWishlistEvents();
-    bindCartEvents();
-    bindProductCardNavigation();
+  
     bindMobileMenuAutoFocus();
     renderFooterLinks();
 
     if (document.getElementById("productGrid")) {
-        // Các phần chỉ có ở trang chủ (index.html)
-        bindTabEvents();
+      
         renderStream();
         bindLikeButton();
         startViewerTicker();
@@ -876,15 +626,18 @@ async function init() {
         renderTrendingSpotlight();
         renderTrendingRankList();
         renderInstagramFeed();
-        fetchProducts();
+
+   
+        initGridCarousel(liveShowGrid, document.getElementById("liveShowDots"));
+        initGridCarousel(opportunityGrid, document.getElementById("opportunityDots"));
+        initGridCarousel(productGrid, document.getElementById("buyingDots"));
     }
 
     if (document.getElementById("singleProductContent")) {
-        // Trang chi tiết sản phẩm (single.html)
+   
         fetchSingleProduct();
     }
 }
-document.getElementById("productsRetryBtn")?.addEventListener("click", fetchProducts);
 document.getElementById("singleRetryBtn")?.addEventListener("click", fetchSingleProduct);
 // =============================
 // KHỞI CHẠY ỨNG DỤNG
