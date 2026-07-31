@@ -5,6 +5,21 @@
         <div class="hero"></div>
     </div>
 </section>
+
+<?php
+$essence_query = new WP_Query( array(
+    'post_type'      => 'seoulive_product',
+    'posts_per_page' => -1,
+    'tax_query'      => array(
+        array(
+            'taxonomy' => 'product_brand',
+            'field'    => 'slug',
+            'terms'    => 'essence',
+        ),
+    ),
+) );
+?>
+
 <section class="live-show">
     <div class="container">
         <div class="section-header">
@@ -12,10 +27,12 @@
             <a href="#" class="view-all">View All Products</a>
         </div>
         <div id="liveShowGrid" class="row g-3">
-            <?php if ( have_posts() ) : ?>
-                <?php while ( have_posts() ) : the_post(); ?>
+            <?php if ( $essence_query->have_posts() ) : ?>
+                <?php while ( $essence_query->have_posts() ) : $essence_query->the_post(); ?>
                     <?php seoulive_product_card(); ?>
                 <?php endwhile; ?>
+            <?php else : ?>
+                <p class="text-muted">Chưa có sản phẩm nào thuộc brand Essence.</p>
             <?php endif; ?>
         </div>
         <div class="carousel-dots" id="liveShowDots"></div>
@@ -59,12 +76,14 @@
                 Watch real moments from our livestreams — no filters, just honest reactions.
             </p>
             <a href="#" class="join-live-btn">Join Live Now</a>
-            <?php rewind_posts(); ?>
+            <?php $essence_query->rewind_posts(); ?>
             <div id="opportunityGrid" class="row g-3">
-                <?php if ( have_posts() ) : ?>
-                    <?php while ( have_posts() ) : the_post(); ?>
+                <?php if ( $essence_query->have_posts() ) : ?>
+                    <?php while ( $essence_query->have_posts() ) : $essence_query->the_post(); ?>
                         <?php seoulive_product_card(); ?>
                     <?php endwhile; ?>
+                <?php else : ?>
+                    <p class="text-muted">Chưa có sản phẩm nào thuộc brand Essence.</p>
                 <?php endif; ?>
             </div>
             <div class="carousel-dots" id="opportunityDots"></div>
@@ -76,12 +95,14 @@
         <div class="buying-header">
             <h2>What Everyone Is Buying Right Now</h2>
         </div>
-        <?php rewind_posts(); ?>
+        <?php $essence_query->rewind_posts(); ?>
         <div id="productGrid" class="row g-3">
-            <?php if ( have_posts() ) : ?>
-                <?php while ( have_posts() ) : the_post(); ?>
+            <?php if ( $essence_query->have_posts() ) : ?>
+                <?php while ( $essence_query->have_posts() ) : $essence_query->the_post(); ?>
                     <?php seoulive_product_card(); ?>
                 <?php endwhile; ?>
+            <?php else : ?>
+                <p class="text-muted">Chưa có sản phẩm nào thuộc brand Essence.</p>
             <?php endif; ?>
         </div>
         <div class="carousel-dots" id="buyingDots"></div>
@@ -90,6 +111,10 @@
         </div>
     </div>
 </section>
+<?php
+
+wp_reset_postdata();
+?>
 <section class="trusted-brands">
     <div class="container">
         <div class="trusted-header">

@@ -102,7 +102,6 @@ const footerColumns = [
 // vì phần danh sách sản phẩm ở trang chủ giờ lấy từ WP Posts qua The Loop
 // (xem index.php + hàm seoulive_product_card() trong functions.php).
 // =============================
-
 // =============================
 // KHU VỰC "CAROUSEL DOTS" (mobile)
 // =============================
@@ -495,7 +494,8 @@ function showSingleError(message) {
         text.classList.add("text-danger");
     }
 }
-
+// Dùng chung bởi renderSingleProduct() (trang single.html) để chuẩn hoá
+// response thô từ DummyJSON về đúng field theo cùng format cũ.
 function mapApiProductToInternal(item) {
     const hasDiscount = item.discountPercentage > 0;
     const salePrice = item.price;
@@ -611,12 +611,12 @@ async function fetchSingleProduct() {
     }
 }
 async function init() {
-  
+   
     bindMobileMenuAutoFocus();
     renderFooterLinks();
 
     if (document.getElementById("productGrid")) {
-      
+       
         renderStream();
         bindLikeButton();
         startViewerTicker();
@@ -627,14 +627,14 @@ async function init() {
         renderTrendingRankList();
         renderInstagramFeed();
 
-   
+       
         initGridCarousel(liveShowGrid, document.getElementById("liveShowDots"));
         initGridCarousel(opportunityGrid, document.getElementById("opportunityDots"));
         initGridCarousel(productGrid, document.getElementById("buyingDots"));
     }
 
     if (document.getElementById("singleProductContent")) {
-   
+      
         fetchSingleProduct();
     }
 }
