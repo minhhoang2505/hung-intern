@@ -8,7 +8,14 @@ export default function SubscribeForm() {
   const [message, setMessage] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  e.preventDefault();
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    setStatus("error");
+    setMessage("Vui lòng nhập đúng định dạng email");
+    return;
+  }
     setStatus("loading");
 
     try {

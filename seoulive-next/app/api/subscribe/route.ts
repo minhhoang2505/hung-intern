@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: "Email không hợp lệ" }, { status: 400 });
     }
 
     const username = process.env.WP_USERNAME!;
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
         Authorization: `Basic ${basicAuth}`,
       },
       body: JSON.stringify({
-        title: email,       // lưu email vào field "title" của post type Subscriber
+        title: email,       
         status: "publish",
       }),
     });

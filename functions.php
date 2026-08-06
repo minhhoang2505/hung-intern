@@ -277,6 +277,51 @@ function seoulive_product_card() {
             </div>
         </article>
     </div>
+    
     <?php
 }
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
+add_action('rest_api_init', function () {
+    register_rest_route('custom/v1', '/register', array(
+        'methods' => 'POST',
+        'callback' => 'custom_register_user',
+        'permission_callback' => '__return_true', 
+    ));
+});
+
+function custom_register_user(WP_REST_Request $request) {
+    $username = sanitize_user($request->get_param('username'));
+    $email    = sanitize_email($request->get_param('email'));
+    $password = $request->get_param('password');
+
+    // Validate cơ bản
+    if (empty($username) || empty($email) || empty($password)) {
+        return new WP_Error('missing_fields', 'Vui lòng nhập đầy đủ username, email, password', array('status' => 400));
+    }
+
+    if (username_exists($username)) {
+        return new WP_Error('username_exists', 'Username đã tồn tại', array('status' => 409));
+    }
+
+    if (email_exists($email)) {
+        return new WP_Error('email_exists', 'Email đã được đăng ký', array('status' => 409));
+    }
+
+    // Tạo user mới
+    $user_id = wp_insert_user(array(
+        'user_login' => $username,
+        'user_email' => $email,
+        'user_pass'  => $password,
+        'role'       => 'subscriber', // quyền hạn cơ bản, không phải admin
+    ));
+
+    if (is_wp_error($user_id)) {
+        return new WP_Error('registration_failed', $user_id->get_error_message(), array('status' => 500));
+    }
+
+    return array(
+        'success' => true,
+        'user_id' => $user_id,
+        'message' => 'Đăng ký thành công',
+    );
+}
