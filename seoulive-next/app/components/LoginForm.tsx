@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
   const [form, setForm] = useState({ username: "", password: "" });
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,8 +28,8 @@ export default function LoginForm() {
         return;
       }
 
-      setStatus("success");
-      setMessage("Đăng nhập thành công! Kiểm tra Terminal để xem token.");
+      router.push("/profile");
+      router.refresh(); // để Header cập nhật lại trạng thái đăng nhập
     } catch {
       setStatus("error");
       setMessage("Không thể kết nối server");
@@ -60,9 +62,7 @@ export default function LoginForm() {
       >
         {status === "loading" ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
-      {message && (
-        <p className={status === "success" ? "text-green-600" : "text-red-600"}>{message}</p>
-      )}
+      {message && <p className="text-red-600">{message}</p>}
     </form>
   );
 }

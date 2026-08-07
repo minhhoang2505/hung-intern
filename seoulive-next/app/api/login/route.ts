@@ -20,12 +20,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: data.message || "Đăng nhập thất bại" }, { status: res.status });
     }
 
-    // Đây chính là chỗ in token ra Terminal (Server) để chứng minh đăng nhập thành công
-    console.log("=== JWT TOKEN NHẬN ĐƯỢC ===");
-    console.log(data.token);
-    console.log("============================");
+    // Tạo response trả về Client
+    const response = NextResponse.json({ success: true, user: data.user_display_name });
 
-    return NextResponse.json(data);
+    // Set HttpOnly Cookie chứa JWT
+    response.cookies.set("token", data.token, {
+      httpOnly: true,       
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 ngày
+    });
+
+    return response;
   } catch (error) {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
