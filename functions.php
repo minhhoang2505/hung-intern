@@ -55,7 +55,6 @@ function seoulive_register_brand_taxonomy() {
         'show_admin_column' => true,
         'rewrite'           => array( 'slug' => 'brand' ),
 
-        
         'show_in_rest'      => true,
     );
 
