@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
@@ -6,7 +7,7 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: "Email không hợp lệ" }, { status: 400 });
@@ -16,14 +17,14 @@ export async function POST(request: NextRequest) {
     const appPassword = process.env.WP_APP_PASSWORD!;
     const basicAuth = Buffer.from(`${username}:${appPassword}`).toString("base64");
 
-    const res = await fetch(process.env.WP_API_URL!, {
+    const res = await fetch(`${process.env.WP_BASE_URL}/wp-json/wp/v2/subscriber`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Basic ${basicAuth}`,
       },
       body: JSON.stringify({
-        title: email,       
+        title: email,
         status: "publish",
       }),
     });

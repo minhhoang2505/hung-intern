@@ -16,8 +16,8 @@ interface Product {
 
 async function getProducts(brandId?: string): Promise<Product[]> {
   const url = brandId
-    ? `http://test1.local/wp-json/wp/v2/seoulive_product?product_brand=${brandId}&_embed`
-    : `http://test1.local/wp-json/wp/v2/seoulive_product?_embed`;
+    ? `${process.env.WP_BASE_URL}/wp-json/wp/v2/seoulive_product?product_brand=${brandId}&_embed`
+    : `${process.env.WP_BASE_URL}/wp-json/wp/v2/seoulive_product?_embed`;
 
   const res = await fetch(url, { cache: "no-store" });
 

@@ -7,7 +7,7 @@ interface WPUser {
 }
 
 async function getCurrentUser(token: string): Promise<WPUser | null> {
-  const res = await fetch("http://test1.local/wp-json/wp/v2/users/me?context=edit", {
+  const res = await fetch(`${process.env.WP_BASE_URL}/wp-json/wp/v2/users/me?context=view`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

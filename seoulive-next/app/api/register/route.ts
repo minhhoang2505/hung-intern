@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Vui lòng nhập đầy đủ thông tin" }, { status: 400 });
     }
 
-    const res = await fetch("http://test1.local/wp-json/custom/v1/register", {
+    const res = await fetch(`${process.env.WP_BASE_URL}/wp-json/custom/v1/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password }),
