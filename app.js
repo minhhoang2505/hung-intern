@@ -214,7 +214,7 @@ function getBadgeClass(badge) {
     return BADGE_COLOR_MAP[badge] || "badge-default";
 
 }
-function escapeHTML(text) {
+function escapeHTML(text) 
     return String(text)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
