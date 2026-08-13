@@ -76,7 +76,7 @@ export default async function HomePage({
             return (
               <Link
                 key={product.id}
-                href={product.link}
+                href={`/product/${product.slug}`}
                 className="border rounded-lg overflow-hidden hover:shadow-lg transition"
               >
                 <div className="relative w-full aspect-square bg-gray-100">
