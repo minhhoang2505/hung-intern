@@ -60,12 +60,33 @@ class Seoulive_Core_Plugin {
 		add_action( 'init', array( $this, 'register_product_post_type' ) );
 		add_action( 'init', array( $this, 'register_brand_taxonomy' ) );
 		add_action( 'init', array( $this, 'register_price_meta_for_rest' ) );
+		add_action( 'init', array( $this, 'register_order_post_type' ) );
+
+		// Quick-order feature: cache invalidation + email notification.
+		add_action( 'seoulive_new_order_created', array( $this, 'invalidate_product_cache_on_order' ), 10, 2 );
+		add_action( 'seoulive_new_order_created', array( $this, 'notify_admin_on_order' ), 10, 2 );
+
+		// FIX: cache cũng phải được xoá khi admin tự sửa sản phẩm trong wp-admin
+		// (đổi giá, đổi tồn kho...), không chỉ khi có đơn hàng mới. Trước đây thiếu
+		// hook này nên sửa tồn kho xong Next.js vẫn thấy data cache cũ tới 1 tiếng.
+		add_action( 'save_post_seoulive_product', array( $this, 'invalidate_product_cache_on_save' ) );
+
+		// Logging: WordPress tự bắn hook này bất cứ khi nào wp_mail() thất bại
+		// (SMTP auth sai, mất kết nối...). Chỉ log lại, không làm gián đoạn
+		// response đã trả về Next.js — xem chi tiết ở log_mail_failure().
+		add_action( 'wp_mail_failed', array( $this, 'log_mail_failure' ) );
 
 		add_action( 'add_meta_boxes', array( $this, 'add_price_meta_box' ) );
 		add_action( 'save_post', array( $this, 'save_price_meta' ) );
 
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_filter( 'rest_prepare_seoulive_product', array( $this, 'add_discount_percentage' ), 10, 3 );
+
+		// Caching cho danh sách sản phẩm (Transients API) — xem chi tiết ở khối
+		// method get_products_cache_version() / check_products_cache() /
+		// save_products_cache() phía cuối class.
+		add_filter( 'rest_pre_dispatch', array( $this, 'check_products_cache' ), 10, 3 );
+		add_filter( 'rest_post_dispatch', array( $this, 'save_products_cache' ), 10, 3 );
 
 		add_action( 'user_register', array( $this, 'log_new_registration' ) );
 
@@ -101,7 +122,12 @@ class Seoulive_Core_Plugin {
 			'show_in_menu'  => true,
 			'menu_icon'     => 'dashicons-cart',
 			'menu_position' => 5,
-			'supports'      => array( 'title', 'editor', 'thumbnail' ),
+			// FIX: 'custom-fields' bắt buộc phải có ở đây thì WordPress mới đưa object
+			// "meta" vào REST response. Thiếu dòng này thì dù register_post_meta() đã
+			// bật show_in_rest cho regular_price/sale_price/stock cũng vô nghĩa — REST
+			// API sẽ không bao giờ trả field "meta" về, khiến Next.js luôn đọc được
+			// stock = undefined và hiển thị nhầm là hết hàng.
+			'supports'      => array( 'title', 'editor', 'thumbnail', 'custom-fields' ),
 			'rewrite'       => array( 'slug' => 'san-pham' ),
 			'show_in_rest'  => true,
 			'rest_base'     => 'seoulive_product',
@@ -153,6 +179,38 @@ class Seoulive_Core_Plugin {
 
 		register_post_meta( 'seoulive_product', 'regular_price', $args );
 		register_post_meta( 'seoulive_product', 'sale_price', $args );
+		register_post_meta( 'seoulive_product', 'stock', $args );
+	}
+
+	/**
+	 * Register the "seoulive_order" custom post type (admin-only, not public).
+	 * Used to store quick orders created from the headless Next.js frontend.
+	 */
+	public function register_order_post_type() {
+
+		$labels = array(
+			'name'          => __( 'Đơn hàng', 'seoulive-core' ),
+			'singular_name' => __( 'Đơn hàng', 'seoulive-core' ),
+			'menu_name'     => __( 'Đơn hàng Seoulive', 'seoulive-core' ),
+			'all_items'     => __( 'Tất cả đơn hàng', 'seoulive-core' ),
+			'view_item'     => __( 'Xem đơn hàng', 'seoulive-core' ),
+			'search_items'  => __( 'Tìm đơn hàng', 'seoulive-core' ),
+			'not_found'     => __( 'Không tìm thấy đơn hàng nào.', 'seoulive-core' ),
+		);
+
+		$args = array(
+			'labels'          => $labels,
+			'public'          => false,
+			'show_ui'         => true,
+			'show_in_menu'    => true,
+			'menu_icon'       => 'dashicons-clipboard',
+			'menu_position'   => 6,
+			'supports'        => array( 'title' ),
+			'show_in_rest'    => false, // Không expose ra REST mặc định, chỉ tạo qua endpoint riêng bên dưới.
+			'capability_type' => 'post',
+		);
+
+		register_post_type( 'seoulive_order', $args );
 	}
 
 	/**
@@ -204,6 +262,17 @@ class Seoulive_Core_Plugin {
 				class="widefat">
 			<span class="description"><?php esc_html_e( 'Để trống nếu sản phẩm không giảm giá.', 'seoulive-core' ); ?></span>
 		</p>
+		<p>
+			<label for="seoulive_stock"><strong><?php esc_html_e( 'Tồn kho', 'seoulive-core' ); ?></strong></label><br>
+			<input
+				type="number"
+				step="1"
+				min="0"
+				name="seoulive_stock"
+				id="seoulive_stock"
+				value="<?php echo esc_attr( get_post_meta( $post->ID, 'stock', true ) ); ?>"
+				class="widefat">
+		</p>
 		<?php
 	}
 
@@ -242,6 +311,11 @@ class Seoulive_Core_Plugin {
 			$sale_price = sanitize_text_field( wp_unslash( $_POST['seoulive_sale_price'] ) );
 			update_post_meta( $post_id, 'sale_price', $sale_price );
 		}
+
+		if ( isset( $_POST['seoulive_stock'] ) ) {
+			$stock = absint( wp_unslash( $_POST['seoulive_stock'] ) );
+			update_post_meta( $post_id, 'stock', $stock );
+		}
 	}
 
 	/**
@@ -257,12 +331,263 @@ class Seoulive_Core_Plugin {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		register_rest_route(
+			$this->rest_namespace,
+			'/quick-order',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_quick_order' ),
+				'permission_callback' => array( $this, 'quick_order_permission_check' ),
+				'args'                => array(
+					'name'       => array(
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'phone'      => array(
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'address'    => array(
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_textarea_field',
+					),
+					'product_id' => array(
+						'required'          => true,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Permission check for POST /seoulive/v1/quick-order.
+	 *
+	 * Chặn spam bằng 2 lớp:
+	 * 1) Secret header dùng chung với server Next.js (không lộ ra browser).
+	 * 2) Rate limit theo IP bằng Transient (tối đa 5 request/phút).
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return bool|WP_Error
+	 */
+	public function quick_order_permission_check( WP_REST_Request $request ) {
+
+		$secret = $request->get_header( 'x-seoulive-secret' );
+
+		if ( ! defined( 'SEOULIVE_API_SECRET' ) || ! $secret || ! hash_equals( SEOULIVE_API_SECRET, $secret ) ) {
+			return new WP_Error( 'forbidden', __( 'Không có quyền truy cập.', 'seoulive-core' ), array( 'status' => 403 ) );
+		}
+
+		$ip = $request->get_header( 'x-seoulive-client-ip' );
+		if ( ! $ip ) {
+			$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '0.0.0.0';
+		}
+		$rate_limit_key = 'seoulive_rl_' . md5( $ip );
+		$count          = (int) get_transient( $rate_limit_key );
+
+		if ( $count >= 5 ) {
+			return new WP_Error(
+				'rate_limited',
+				__( 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.', 'seoulive-core' ),
+				array( 'status' => 429 )
+			);
+		}
+
+		set_transient( $rate_limit_key, $count + 1, MINUTE_IN_SECONDS );
+
+		return true;
+	}
+
+	/**
+	 * Handle POST /seoulive/v1/quick-order — creates a quick order from the
+	 * headless Next.js product page, decrementing stock atomically to avoid
+	 * race conditions.
+	 *
+	 * @param WP_REST_Request $request Incoming request.
+	 * @return array|WP_Error
+	 */
+	public function handle_quick_order( WP_REST_Request $request ) {
+		global $wpdb;
+
+		$name       = $request->get_param( 'name' );
+		$phone      = $request->get_param( 'phone' );
+		$address    = $request->get_param( 'address' );
+		$product_id = $request->get_param( 'product_id' );
+
+		if ( ! preg_match( '/^[0-9+ ]{9,15}$/', $phone ) ) {
+			return new WP_Error( 'invalid_phone', __( 'Số điện thoại không hợp lệ.', 'seoulive-core' ), array( 'status' => 400 ) );
+		}
+
+		$product = get_post( $product_id );
+		if ( ! $product || 'seoulive_product' !== $product->post_type ) {
+			return new WP_Error( 'invalid_product', __( 'Sản phẩm không tồn tại.', 'seoulive-core' ), array( 'status' => 400 ) );
+		}
+
+		// RACE CONDITION FIX: trừ kho bằng 1 câu UPDATE atomic có điều kiện,
+		// KHÔNG được đọc stock ra PHP rồi tính toán rồi ghi lại (2 bước đó không atomic
+		// khi có 2 request chạy gần như song song).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Bắt buộc dùng $wpdb->query() trực tiếp để đảm bảo phép trừ kho ATOMIC (WHERE ... AND stock > 0); các hàm WP cấp cao (update_post_meta) không đảm bảo tính atomic này. Không áp dụng object cache cho câu UPDATE ghi dữ liệu.
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->postmeta}
+				 SET meta_value = meta_value - 1
+				 WHERE post_id = %d
+				   AND meta_key = 'stock'
+				   AND CAST( meta_value AS SIGNED ) > 0",
+				$product_id
+			)
+		);
+
+		if ( ! $updated ) {
+			return new WP_Error( 'out_of_stock', __( 'Sản phẩm vừa hết hàng, vui lòng chọn sản phẩm khác.', 'seoulive-core' ), array( 'status' => 409 ) );
+		}
+
+		$order_id = wp_insert_post(
+			array(
+				'post_type'   => 'seoulive_order',
+				'post_title'  => sprintf( 'Đơn hàng nhanh - %s', $name ),
+				'post_status' => 'publish',
+				'meta_input'  => array(
+					'customer_name'    => $name,
+					'customer_phone'   => $phone,
+					'customer_address' => $address,
+					'product_id'       => $product_id,
+				),
+			)
+		);
+
+		if ( is_wp_error( $order_id ) || ! $order_id ) {
+			// Rollback kho nếu tạo đơn thất bại, tránh mất hàng oan.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Rollback đối xứng với UPDATE atomic phía trên, cùng lý do phải thao tác trực tiếp trên $wpdb.
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$wpdb->postmeta} SET meta_value = meta_value + 1 WHERE post_id = %d AND meta_key = 'stock'",
+					$product_id
+				)
+			);
+
+			// Ghi chi tiết lỗi thật vào debug.log để dev tự trace được nguyên nhân
+			// (VD: lỗi DB, lỗi permission...) — KHÔNG echo/var_dump ra ngoài,
+			// vì response cho Next.js phải luôn là JSON thuần, không được lẫn
+			// bất kỳ output nào khác làm hỏng res.json() phía front-end.
+			$error_detail = is_wp_error( $order_id )
+				? $order_id->get_error_message()
+				: 'wp_insert_post() trả về giá trị rỗng/false không rõ lý do.';
+
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập, không phải debug sót lại.
+			error_log(
+				sprintf(
+					'[Seoulive] handle_quick_order() THẤT BẠI khi tạo đơn hàng. product_id=%d, name=%s, phone=%s. Chi tiết: %s',
+					$product_id,
+					$name,
+					$phone,
+					$error_detail
+				)
+			);
+
+			// Trả 400 cho Next.js theo đúng yêu cầu đề bài — front-end chỉ cần
+			// biết "tạo đơn thất bại, thử lại", không cần và không nên nhận
+			// chi tiết lỗi kỹ thuật (tránh lộ thông tin nội bộ hệ thống).
+			return new WP_Error( 'order_failed', __( 'Không thể tạo đơn hàng, vui lòng thử lại.', 'seoulive-core' ), array( 'status' => 400 ) );
+		}
+
+		// Bắn 1 event duy nhất, các phần cache-invalidation và email tự lắng nghe riêng (xem constructor).
+		do_action(
+			'seoulive_new_order_created',
+			$order_id,
+			array(
+				'name'         => $name,
+				'phone'        => $phone,
+				'address'      => $address,
+				'product_id'   => $product_id,
+				'product_name' => get_the_title( $product_id ),
+			)
+		);
+
+		return array(
+			'success'  => true,
+			'order_id' => $order_id,
+			'message'  => __( 'Đặt hàng thành công!', 'seoulive-core' ),
+		);
+	}
+
+	/**
+	 * Listener: xóa cache danh sách sản phẩm ngay khi có đơn hàng mới,
+	 * vì cache hiện tại (seoulive_products_cache) chứa cả số lượng tồn kho.
+	 *
+	 * @param int   $order_id Newly created order ID.
+	 * @param array $data     Order data (không dùng tới ở đây, giữ lại vì
+	 *                        do_action('seoulive_new_order_created') luôn
+	 *                        truyền 2 tham số cho mọi listener đăng ký).
+	 */
+	public function invalidate_product_cache_on_order( $order_id, $data ) { // phpcs:ignore -- $data không dùng tới, nhưng do_action() luôn truyền 2 tham số cho mọi listener đăng ký chung 1 hook.
+		$this->bump_products_cache_version();
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập.
+		error_log( 'Seoulive: Đã xóa cache sản phẩm do có đơn hàng mới #' . $order_id );
+	}
+
+	/**
+	 * Listener: xóa cache danh sách/chi tiết sản phẩm khi admin lưu (thêm/sửa)
+	 * một sản phẩm trong wp-admin. Trigger riêng với luồng đặt hàng ở trên vì
+	 * đây là một "nguồn ghi dữ liệu" (write path) khác.
+	 *
+	 * @param int $post_id ID sản phẩm vừa được lưu.
+	 */
+	public function invalidate_product_cache_on_save( $post_id ) {
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		$this->bump_products_cache_version();
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập.
+		error_log( 'Seoulive: Đã xóa cache sản phẩm do sản phẩm #' . $post_id . ' vừa được lưu trong wp-admin.' );
+	}
+
+	/**
+	 * Listener: báo admin qua email ngay khi có đơn hàng mới, không cần F5 kiểm tra.
+	 *
+	 * @param int   $order_id Newly created order ID.
+	 * @param array $data     Order data.
+	 */
+	public function notify_admin_on_order( $order_id, $data ) {
+		$to      = get_option( 'admin_email' );
+		$subject = sprintf( '[Đơn hàng mới #%d] %s', $order_id, $data['product_name'] );
+		$body    = "Có đơn hàng mới trên website:\n\n"
+			. "Khách hàng: {$data['name']}\n"
+			. "SĐT: {$data['phone']}\n"
+			. "Địa chỉ: {$data['address']}\n"
+			. "Sản phẩm: {$data['product_name']}\n\n"
+			. 'Xem chi tiết: ' . admin_url( 'post.php?post=' . $order_id . '&action=edit' );
+
+		wp_mail( $to, $subject, $body );
+	}
+
+	/**
+	 * Listener: WordPress tự bắn hook 'wp_mail_failed' bất cứ khi nào wp_mail()
+	 * thất bại (SMTP auth sai, mất kết nối tới Gmail...). Chỉ log lại, KHÔNG
+	 * làm gián đoạn response đã trả về Next.js — vì lúc hook này chạy, đơn hàng
+	 * đã được tạo và lưu vào DB thành công rồi, khách hàng không nên bị ảnh
+	 * hưởng bởi một lỗi hoàn toàn nội bộ (admin chưa nhận được thông báo).
+	 *
+	 * @param WP_Error $error Đối tượng lỗi WordPress tự tạo, chứa chi tiết SMTP.
+	 */
+	public function log_mail_failure( $error ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập, không phải debug sót lại.
+		error_log(
+			sprintf(
+				'[Seoulive] wp_mail() THẤT BẠI khi gửi thông báo đơn hàng cho admin. Chi tiết: %s',
+				$error->get_error_message()
+			)
+		);
 	}
 
 	/**
 	 * Handle POST /seoulive/v1/register — creates a new subscriber account.
 	 *
-	 * @param WP_REST_Request
+	 * @param WP_REST_Request $request Incoming request, gồm username/email/password.
 	 * @return array|WP_Error
 	 */
 	public function handle_user_registration( WP_REST_Request $request ) {
@@ -317,12 +642,14 @@ class Seoulive_Core_Plugin {
 	/**
 	 * Append a computed discount percentage to the product REST response.
 	 *
-	 * @param WP_REST_Response
-	 * @param WP_Post
-	 * @param WP_REST_Request
+	 * @param WP_REST_Response $response The response object.
+	 * @param WP_Post          $post     Post object của sản phẩm hiện tại.
+	 * @param WP_REST_Request  $request  Request hiện tại (không dùng tới, giữ
+	 *                                   lại vì filter 'rest_prepare_seoulive_product'
+	 *                                   luôn truyền đủ 3 tham số cho mọi callback).
 	 * @return WP_REST_Response
 	 */
-	public function add_discount_percentage( $response, $post, $request ) {
+	public function add_discount_percentage( $response, $post, $request ) { // phpcs:ignore -- $request không dùng tới, nhưng filter 'rest_prepare_seoulive_product' luôn truyền đủ 3 tham số cho mọi callback.
 		$regular_price = get_post_meta( $post->ID, 'regular_price', true );
 		$sale_price    = get_post_meta( $post->ID, 'sale_price', true );
 
@@ -345,49 +672,119 @@ class Seoulive_Core_Plugin {
 	/**
 	 * Log every new user registration to the PHP error log.
 	 *
-	 * @param int
+	 * @param int $user_id ID của user vừa đăng ký thành công.
 	 */
 	public function log_new_registration( $user_id ) {
 		$user  = get_userdata( $user_id );
 		$email = $user ? $user->user_email : 'unknown';
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Chủ động dùng error_log() để ghi trace log theo đúng yêu cầu bài tập (không phải debug sót lại).
 		error_log( 'Thành viên mới đăng ký: ' . $email );
 	}
-}
-// ---------- CACHING: Transients API cho danh sách sản phẩm ----------
 
-add_filter( 'rest_pre_dispatch', 'seoulive_check_products_cache', 10, 3 );
+	// ---------- CACHING: Transients API cho danh sách sản phẩm ----------
+	//
+	// FIX quan trọng: bản cũ dùng ĐÚNG 1 transient key ('seoulive_products_cache')
+	// cho MỌI request GET tới route này, bất kể query params (?slug=..., ?page=...).
+	// Hậu quả: request đầu tiên (VD: list rỗng, hoặc slug khác) cache lại, rồi mọi
+	// request sau — kể cả lấy đúng 1 sản phẩm theo slug khác — đều bị trả nhầm data
+	// cũ đó trong tối đa 1 tiếng, dù DB đã đúng. Đây chính là lý do sản phẩm đã có
+	// tồn kho > 0 trong wp-admin mà Next.js vẫn báo hết hàng.
+	//
+	// Cách fix: build cache key riêng cho từng tổ hợp query param, và thêm 1 "cache
+	// version" lưu trong option — mỗi lần cần invalidate (có đơn hàng mới HOẶC admin
+	// sửa sản phẩm) chỉ cần tăng version lên 1, mọi key cũ (ứng với mọi query khác
+	// nhau) tự động bị coi là "miss" mà không cần biết hết có bao nhiêu biến thể key.
 
-function seoulive_check_products_cache( $result, $server, $request ) {
+	/**
+	 * Lấy version hiện tại của cache sản phẩm.
+	 *
+	 * @return int
+	 */
+	public function get_products_cache_version() {
+		return (int) get_option( 'seoulive_products_cache_version', 1 );
+	}
 
-	if ( $request->get_route() !== '/wp/v2/seoulive_product' || $request->get_method() !== 'GET' ) {
+	/**
+	 * Tăng version cache sản phẩm lên 1 => vô hiệu hoá toàn bộ cache cũ ngay lập tức,
+	 * bất kể có bao nhiêu key (theo bao nhiêu query params) đang tồn tại.
+	 */
+	public function bump_products_cache_version() {
+		update_option( 'seoulive_products_cache_version', $this->get_products_cache_version() + 1 );
+	}
+
+	/**
+	 * Build transient key duy nhất cho từng tổ hợp query param + version hiện tại.
+	 *
+	 * @param WP_REST_Request $request Request hiện tại.
+	 * @return string
+	 */
+	public function build_products_cache_key( $request ) {
+		$params = $request->get_query_params();
+		ksort( $params );
+		return 'seoulive_pc_v' . $this->get_products_cache_version() . '_' . md5( wp_json_encode( $params ) );
+	}
+
+	/**
+	 * Hook vào 'rest_pre_dispatch' — chạy TRƯỚC khi WordPress thực sự xử lý
+	 * request. Nếu có cache hợp lệ, trả luôn data từ transient và bỏ qua
+	 * hoàn toàn bước query Database.
+	 *
+	 * @param mixed           $result Giá trị mặc định (null nếu chưa ai xử lý).
+	 * @param WP_REST_Server  $server REST server instance.
+	 * @param WP_REST_Request $request Request hiện tại.
+	 * @return mixed
+	 */
+	public function check_products_cache( $result, $server, $request ) {
+		if ( '/wp/v2/seoulive_product' !== $request->get_route() || 'GET' !== $request->get_method() ) {
+			return $result;
+		}
+
+		$cache_key   = $this->build_products_cache_key( $request );
+		$cached_data = get_transient( $cache_key );
+
+		if ( false !== $cached_data ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động, phục vụ debug caching theo yêu cầu bài tập.
+			error_log( 'Seoulive: Trả dữ liệu từ CACHE (transient) - key: ' . $cache_key );
+			// Đánh dấu để rest_post_dispatch biết là đã dùng cache, không lưu lại nữa.
+			$request->set_param( '_seoulive_from_cache', true );
+			return rest_ensure_response( $cached_data );
+		}
+
 		return $result;
 	}
 
-	$cached_data = get_transient( 'seoulive_products_cache' );
+	/**
+	 * Hook vào 'rest_post_dispatch' — chạy SAU khi WordPress đã tự query
+	 * Database và có response thật. Lưu lại response đó vào transient để
+	 * lần gọi kế tiếp (với cùng query params) không cần chạm DB nữa.
+	 *
+	 * @param WP_REST_Response|WP_Error $response Response WordPress vừa tạo ra.
+	 * @param WP_REST_Server            $server   REST server instance.
+	 * @param WP_REST_Request           $request  Request hiện tại.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function save_products_cache( $response, $server, $request ) {
+		if ( '/wp/v2/seoulive_product' !== $request->get_route() || 'GET' !== $request->get_method() ) {
+			return $response;
+		}
 
-	if ( $cached_data !== false ) {
-		error_log( 'Seoulive: Trả dữ liệu từ CACHE (transient)' );
-		return rest_ensure_response( $cached_data );
-	}
-	return $result;
-}
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
 
-add_filter( 'rest_post_dispatch', 'seoulive_save_products_cache', 10, 3 );
+		// Nếu data này vừa lấy từ cache ra, KHÔNG lưu lại nữa.
+		if ( $request->get_param( '_seoulive_from_cache' ) ) {
+			return $response;
+		}
 
-function seoulive_save_products_cache( $response, $server, $request ) {
-	if ( $request->get_route() !== '/wp/v2/seoulive_product' || $request->get_method() !== 'GET' ) {
+		$cache_key = $this->build_products_cache_key( $request );
+		set_transient( $cache_key, $response->get_data(), 3600 );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động, phục vụ debug caching theo yêu cầu bài tập.
+		error_log( 'Seoulive: Đã LƯU cache mới (thời hạn 1 giờ) - key: ' . $cache_key );
+
 		return $response;
 	}
-
-	if ( is_wp_error( $response ) ) {
-		return $response;
-	}
-
-	set_transient( 'seoulive_products_cache', $response->get_data(), 3600 ); // 1 giờ
-	error_log( 'Seoulive: Đã LƯU cache mới (thời hạn 1 giờ)' );
-
-	return $response;
 }
 
 Seoulive_Core_Plugin::get_instance();
