@@ -205,7 +205,7 @@ function seoulive_enqueue_assets() {
 		'seoulive-google-fonts',
 		'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap',
 		array(),
-		null
+		$theme_version
 	);
 
 	// Font Awesome (CDN).
