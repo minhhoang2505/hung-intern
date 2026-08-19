@@ -205,7 +205,7 @@ function seoulive_enqueue_assets() {
 		'seoulive-google-fonts',
 		'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap',
 		array(),
-		$theme_version
+		null
 	);
 
 	// Font Awesome (CDN).
@@ -282,7 +282,7 @@ function seoulive_product_card() {
 					<?php the_post_thumbnail( 'medium', array( 'class' => 'img-fluid w-100' ) ); ?>
 				<?php else : ?>
 					<img src="<?php echo esc_url( get_template_directory_uri() . '/img/placeholder.jpg' ); ?>"
-						alt="<?php the_title_attribute(); ?>">
+						 alt="<?php the_title_attribute(); ?>">
 				<?php endif; ?>
 				<span class="quick-view-label">
 					<i class="fa-regular fa-eye me-1"></i>Xem chi tiết
@@ -293,7 +293,7 @@ function seoulive_product_card() {
 					<p class="product-brand"><?php echo esc_html( $brand_name ); ?></p>
 				<?php endif; ?>
 				<h3 class="product-name">
-					<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+					<a href="<?php the_permalink(); ?>"><?php echo esc_html( get_the_title() ); ?></a>
 				</h3>
 				<p class="product-date"><?php echo esc_html( get_the_date() ); ?></p>
 				<div class="product-excerpt"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 15 ) ); ?></div>
