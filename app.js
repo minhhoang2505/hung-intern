@@ -456,6 +456,76 @@ function renderFooterLinks() {
     `).join("");
 }
 // =============================
+// KHU VỰC "LỌC SẢN PHẨM TỨC THÌ" (trang archive-seoulive_product.php)
+// Cơ chế: user đổi <select> -> gửi POST (action, filter, nonce) tới
+// admin-ajax.php -> PHP (seoulive_ajax_filter_products trong functions.php)
+// query lại sản phẩm -> trả về HTML -> JS chỉ thay innerHTML của grid,
+// KHÔNG reload lại toàn bộ trang.
+// =============================
+function setProductFilterLoading(gridEl, isLoading) {
+    if (!gridEl) return;
+    gridEl.style.opacity = isLoading ? "0.4" : "1";
+    gridEl.style.pointerEvents = isLoading ? "none" : "auto";
+}
+
+async function fetchFilteredProducts(filterValue) {
+    const gridEl = document.getElementById("seouliveProductGrid");
+    if (!gridEl) return;
+
+    // seouliveData.ajaxUrl / seouliveData.nonce được PHP nạp sẵn qua
+    // wp_localize_script() trong functions.php - không hardcode URL/nonce
+    // trực tiếp trong file JS này.
+    if (typeof seouliveData === "undefined" || !seouliveData.ajaxUrl) {
+        console.error("Thiếu seouliveData.ajaxUrl - kiểm tra lại wp_localize_script().");
+        return;
+    }
+
+    setProductFilterLoading(gridEl, true);
+
+    try {
+        const formData = new URLSearchParams();
+        formData.append("action", "seoulive_filter_products"); // khớp với wp_ajax_{action} ở PHP
+        formData.append("filter", filterValue);
+        formData.append("nonce", seouliveData.nonce);
+
+        const response = await fetch(seouliveData.ajaxUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // wp_send_json_success() -> { success: true, data: {...} }
+        // wp_send_json_error()  / check_ajax_referer() die -1 -> success !== true
+        if (!result.success) {
+            throw new Error("Server từ chối request (nonce sai/hết hạn hoặc lỗi xử lý).");
+        }
+
+        gridEl.innerHTML = result.data.html;
+    } catch (error) {
+        console.error("Lỗi khi lọc sản phẩm qua AJAX:", error);
+        gridEl.innerHTML = `<p class="text-danger">Không thể tải sản phẩm, vui lòng thử lại. (${escapeHTML(error.message)})</p>`;
+    } finally {
+        setProductFilterLoading(gridEl, false);
+    }
+}
+
+function bindProductFilter() {
+    const filterSelect = document.getElementById("seouliveProductFilter");
+    if (!filterSelect) return;
+
+    filterSelect.addEventListener("change", () => {
+        fetchFilteredProducts(filterSelect.value);
+    });
+}
+// =============================
 // KHU VỰC "TRANG CHI TIẾT SẢN PHẨM" (single.html)
 // Đọc ?id= trên URL (URLSearchParams) -> fetch đúng 1 sản phẩm -> render
 // =============================
@@ -614,6 +684,7 @@ async function init() {
    
     bindMobileMenuAutoFocus();
     renderFooterLinks();
+    bindProductFilter();
 
     if (document.getElementById("productGrid")) {
        

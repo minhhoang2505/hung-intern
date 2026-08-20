@@ -97,6 +97,11 @@ function seoulive_render_price_meta_box( $post ) {
 
 	$regular_price = get_post_meta( $post->ID, 'regular_price', true );
 	$sale_price    = get_post_meta( $post->ID, 'sale_price', true );
+	// 'con_hang' (mặc định) hoặc 'het_hang' - dùng cho bộ lọc AJAX "Tình trạng còn hàng".
+	$stock_status = get_post_meta( $post->ID, 'stock_status', true );
+	if ( '' === $stock_status ) {
+		$stock_status = 'con_hang';
+	}
 	?>
 	<p>
 		<label for="seoulive_regular_price"><strong>Giá gốc ($)</strong></label><br>
@@ -120,6 +125,16 @@ function seoulive_render_price_meta_box( $post ) {
 			value="<?php echo esc_attr( $sale_price ); ?>"
 			class="widefat">
 		<span class="description">Để trống nếu sản phẩm không giảm giá.</span>
+	</p>
+	<p>
+		<label for="seoulive_stock_status"><strong>Tình trạng kho</strong></label><br>
+		<select
+			name="seoulive_stock_status"
+			id="seoulive_stock_status"
+			class="widefat">
+			<option value="con_hang" <?php selected( $stock_status, 'con_hang' ); ?>>Còn hàng</option>
+			<option value="het_hang" <?php selected( $stock_status, 'het_hang' ); ?>>Hết hàng</option>
+		</select>
 	</p>
 	<?php
 }
@@ -158,6 +173,17 @@ function seoulive_save_price_meta( $post_id ) {
 		$sale_price = sanitize_text_field( wp_unslash( $_POST['seoulive_sale_price'] ) );
 		update_post_meta( $post_id, 'sale_price', $sale_price );
 	}
+
+	if ( isset( $_POST['seoulive_stock_status'] ) ) {
+		// sanitize_key(): chỉ dùng cho các giá trị dạng "mã key" cố định
+		// (chữ thường, số, gạch dưới/gạch ngang) như slug/option value -
+		// khác với sanitize_text_field() dùng cho text tự do người dùng nhập.
+		$stock_status = sanitize_key( wp_unslash( $_POST['seoulive_stock_status'] ) );
+		if ( ! in_array( $stock_status, array( 'con_hang', 'het_hang' ), true ) ) {
+			$stock_status = 'con_hang';
+		}
+		update_post_meta( $post_id, 'stock_status', $stock_status );
+	}
 }
 add_action( 'save_post', 'seoulive_save_price_meta' );
 
@@ -176,6 +202,7 @@ function seoulive_register_price_meta_for_rest() {
 
 	register_post_meta( 'seoulive_product', 'regular_price', $args );
 	register_post_meta( 'seoulive_product', 'sale_price', $args );
+	register_post_meta( 'seoulive_product', 'stock_status', $args );
 }
 add_action( 'init', 'seoulive_register_price_meta_for_rest' );
 
@@ -205,7 +232,7 @@ function seoulive_enqueue_assets() {
 		'seoulive-google-fonts',
 		'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap',
 		array(),
-		null
+		$theme_version
 	);
 
 	// Font Awesome (CDN).
@@ -254,7 +281,15 @@ function seoulive_enqueue_assets() {
 		'seoulive-app',
 		'seouliveData',
 		array(
-			'imgUrl' => get_template_directory_uri() . '/img',
+			'imgUrl'  => get_template_directory_uri() . '/img',
+			// admin-ajax.php: cổng vào duy nhất xử lý mọi request AJAX của
+			// WordPress (cả admin lẫn front-end). URL này luôn giống nhau
+			// nên không hardcode trong JS mà lấy qua admin_url().
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			// Nonce ("number used once") gắn với action 'seoulive_ajax_filter'
+			// - JS gửi kèm nonce này trong mỗi request, back-end sẽ xác thực
+			// lại bằng check_ajax_referer() để chống giả mạo request (CSRF).
+			'nonce'   => wp_create_nonce( 'seoulive_ajax_filter' ),
 		)
 	);
 }
@@ -281,8 +316,9 @@ function seoulive_product_card() {
 				<?php if ( has_post_thumbnail() ) : ?>
 					<?php the_post_thumbnail( 'medium', array( 'class' => 'img-fluid w-100' ) ); ?>
 				<?php else : ?>
-					<img src="<?php echo esc_url( get_template_directory_uri() . '/img/placeholder.jpg' ); ?>"
-						 alt="<?php the_title_attribute(); ?>">
+					<img
+						src="<?php echo esc_url( get_template_directory_uri() . '/img/placeholder.jpg' ); ?>"
+						alt="<?php the_title_attribute(); ?>">
 				<?php endif; ?>
 				<span class="quick-view-label">
 					<i class="fa-regular fa-eye me-1"></i>Xem chi tiết
@@ -312,6 +348,115 @@ function seoulive_product_card() {
 	</div>
 	<?php
 }
+
+/**
+ * Xử lý AJAX lọc sản phẩm (giá thấp->cao, giá cao->thấp, còn hàng).
+ *
+ * Hook vào CẢ HAI action:
+ * - wp_ajax_seoulive_filter_products        -> user đã đăng nhập (kể cả admin).
+ * - wp_ajax_nopriv_seoulive_filter_products -> khách (chưa đăng nhập).
+ * Trang archive sản phẩm là trang public, ai cũng xem/lọc được, nên bắt
+ * buộc phải có bản 'nopriv' - thiếu nó, request AJAX của khách sẽ nhận
+ * lỗi -1 vì WordPress không tìm thấy action nào khớp.
+ */
+function seoulive_ajax_filter_products() {
+
+	// 1) KIỂM TRA NONCE TRƯỚC TIÊN.
+	// check_ajax_referer( $action, $query_arg ) sẽ tự động die() với mã
+	// lỗi -1 nếu nonce trong $_POST['nonce'] sai hoặc thiếu, ngắt luôn
+	// script tại đây -> code phía dưới chỉ chạy khi nonce hợp lệ.
+	check_ajax_referer( 'seoulive_ajax_filter', 'nonce' );
+
+	// 2) SANITIZE TOÀN BỘ DỮ LIỆU NHẬN TỪ $_POST.
+	// 'filter' là 1 trong các key cố định ('price_asc', 'price_desc',
+	// 'in_stock', ...) do chính JS của mình gửi lên -> dùng sanitize_key()
+	// (không phải sanitize_text_field, vì đây không phải văn bản tự do).
+	$filter = isset( $_POST['filter'] ) ? sanitize_key( wp_unslash( $_POST['filter'] ) ) : '';
+
+	// 'paged' là số trang -> absint() ép về số nguyên không âm, chống
+	// trường hợp cố tình truyền chuỗi/ký tự lạ vào WP_Query.
+	$paged = isset( $_POST['paged'] ) ? absint( $_POST['paged'] ) : 1;
+	if ( $paged < 1 ) {
+		$paged = 1;
+	}
+
+	$query_args = array(
+		'post_type'      => 'seoulive_product',
+		'post_status'    => 'publish',
+		'posts_per_page' => 6,
+		'paged'          => $paged,
+	);
+
+	switch ( $filter ) {
+
+		case 'price_asc':
+			$query_args['meta_key'] = 'regular_price'; // phpcs:ignore WordPress.DB.SlowDBQuery
+			$query_args['orderby']  = 'meta_value_num';
+			$query_args['order']    = 'ASC';
+			break;
+
+		case 'price_desc':
+			$query_args['meta_key'] = 'regular_price'; // phpcs:ignore WordPress.DB.SlowDBQuery
+			$query_args['orderby']  = 'meta_value_num';
+			$query_args['order']    = 'DESC';
+			break;
+
+		case 'in_stock':
+    	$query_args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery
+        'relation' => 'OR',
+        array(
+            'key'     => 'stock_status',
+            'value'   => 'con_hang',
+            'compare' => '=',
+        ),
+        array(
+            'key'     => 'stock_status',
+            'compare' => 'NOT EXISTS', // sản phẩm chưa từng lưu field này -> coi như mặc định "còn hàng"
+        	),
+    	);
+    	$query_args['orderby'] = 'date';
+    	$query_args['order']   = 'DESC';
+    	break;
+		default:
+			// Không truyền filter hợp lệ -> giữ nguyên thứ tự mặc định (mới nhất trước).
+			$query_args['orderby'] = 'date';
+			$query_args['order']   = 'DESC';
+			break;
+	}
+
+	$product_query = new WP_Query( $query_args );
+
+	// Dùng output buffering để "chụp" lại HTML mà seoulive_product_card()
+	// echo ra trực tiếp, gom thành 1 chuỗi rồi trả về cho JS - thay vì
+	// phải viết lại một bản HTML riêng cho AJAX.
+	ob_start();
+
+	if ( $product_query->have_posts() ) {
+		while ( $product_query->have_posts() ) {
+			$product_query->the_post();
+			seoulive_product_card();
+		}
+	} else {
+		echo '<p class="text-muted">Không tìm thấy sản phẩm phù hợp.</p>';
+	}
+
+	// Query phụ (khác Main Query của trang archive) -> LUÔN reset lại
+	// $post toàn cục sau khi dùng xong, tránh ảnh hưởng phần code chạy
+	// sau đó (dù ở đây request AJAX sẽ die() ngay, vẫn giữ cho đúng chuẩn).
+	wp_reset_postdata();
+
+	$html = ob_get_clean();
+
+	wp_send_json_success(
+		array(
+			'html'          => $html,
+			'max_num_pages' => $product_query->max_num_pages,
+			'found_posts'   => $product_query->found_posts,
+		)
+	);
+}
+add_action( 'wp_ajax_seoulive_filter_products', 'seoulive_ajax_filter_products' );
+add_action( 'wp_ajax_nopriv_seoulive_filter_products', 'seoulive_ajax_filter_products' );
 
 add_filter( 'wp_is_application_passwords_available', '__return_true' );
 
@@ -374,3 +519,19 @@ function custom_register_user( WP_REST_Request $request ) {
 		'message' => 'Đăng ký thành công',
 	);
 }
+/**
+ * Chỉnh Main Query của trang archive seoulive_product:
+ * 6 sản phẩm/trang, mới nhất trước.
+ */
+function seoulive_modify_product_archive_query( $query ) {
+	if ( is_admin() || ! $query->is_main_query() ) {
+		return;
+	}
+
+	if ( $query->is_post_type_archive( 'seoulive_product' ) ) {
+		$query->set( 'posts_per_page', 6 );
+		$query->set( 'orderby', 'date' );
+		$query->set( 'order', 'DESC' );
+	}
+}
+add_action( 'pre_get_posts', 'seoulive_modify_product_archive_query' );

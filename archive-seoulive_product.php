@@ -29,13 +29,28 @@ get_header();
 <section class="archive-products">
 	<div class="container">
 
-		<div class="section-header">
+		<div class="section-header d-flex flex-wrap justify-content-between align-items-center gap-2">
 			<h2><?php post_type_archive_title(); ?></h2>
+
+			<div class="product-filter-wrap">
+				<label for="seouliveProductFilter" class="me-2 mb-0">Lọc sản phẩm:</label>
+				<select id="seouliveProductFilter" class="form-select d-inline-block w-auto">
+					<option value="">Mặc định (mới nhất)</option>
+					<option value="price_asc">Giá: Thấp đến cao</option>
+					<option value="price_desc">Giá: Cao đến thấp</option>
+					<option value="in_stock">Chỉ hiện còn hàng</option>
+				</select>
+			</div>
 		</div>
 
 		<?php if ( have_posts() ) : ?>
 
-			<div class="row g-3">
+			<!--
+				id="seouliveProductGrid": JS (app.js) sẽ replace innerHTML của
+				chính div này bằng HTML trả về từ AJAX mỗi khi user đổi bộ lọc,
+				thay vì reload lại toàn bộ trang.
+			-->
+			<div class="row g-3" id="seouliveProductGrid">
 				<?php
 				while ( have_posts() ) :
 					the_post();
