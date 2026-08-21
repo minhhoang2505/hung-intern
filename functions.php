@@ -385,6 +385,21 @@ function seoulive_ajax_filter_products() {
 		'post_status'    => 'publish',
 		'posts_per_page' => 6,
 		'paged'          => $paged,
+
+		// TỐI ƯU: request AJAX này chỉ hiện đúng trang hiện tại, không cần
+		// tính lại paginate_links() dựa trên tổng số bài match toàn bộ DB
+		// (đó là việc của trang archive gốc, không phải của response AJAX)
+		// -> tắt bước SQL_CALC_FOUND_ROWS mặc định, giảm 1 query mỗi lần lọc.
+		'no_found_rows'  => true,
+
+		// LƯU Ý: KHÔNG set 'update_post_meta_cache' => false ở đây, dù có vẻ
+		// "tối ưu thêm". Lý do: seoulive_product_card() bên dưới gọi
+		// get_post_meta() nhiều lần cho MỖI sản phẩm (regular_price,
+		// sale_price, stock_status). Mặc định (true), WordPress preload toàn
+		// bộ meta của 6 sản phẩm này trong 1 query duy nhất -> các lệnh
+		// get_post_meta() sau đó đọc từ cache, không query lại DB. Nếu tắt
+		// cache này, mỗi get_post_meta() phải tự query riêng lẻ (N+1 query)
+		// -> CHẬM HƠN, ngược lại với mục đích tối ưu.
 	);
 
 	switch ( $filter ) {
@@ -402,21 +417,21 @@ function seoulive_ajax_filter_products() {
 			break;
 
 		case 'in_stock':
-    	$query_args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery
-        'relation' => 'OR',
-        array(
-            'key'     => 'stock_status',
-            'value'   => 'con_hang',
-            'compare' => '=',
-        ),
-        array(
-            'key'     => 'stock_status',
-            'compare' => 'NOT EXISTS', // sản phẩm chưa từng lưu field này -> coi như mặc định "còn hàng"
-        	),
-    	);
-    	$query_args['orderby'] = 'date';
-    	$query_args['order']   = 'DESC';
-    	break;
+			$query_args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.
+			'relation' => 'OR',
+			array(
+			'key'     => 'stock_status',
+			'value'   => 'con_hang',
+			'compare' => '=',
+			),
+			array(
+			'key'     => 'stock_status',
+			'compare' => 'NOT EXISTS', // sản phẩm chưa từng lưu field này -> coi như mặc định "còn hàng".
+			),
+			);
+			$query_args['orderby']    = 'date';
+			$query_args['order']      = 'DESC';
+			break;
 		default:
 			// Không truyền filter hợp lệ -> giữ nguyên thứ tự mặc định (mới nhất trước).
 			$query_args['orderby'] = 'date';
@@ -437,7 +452,7 @@ function seoulive_ajax_filter_products() {
 			seoulive_product_card();
 		}
 	} else {
-		echo '<p class="text-muted">Không tìm thấy sản phẩm phù hợp.</p>';
+		echo '<p class="seoulive-empty-state text-muted">Không tìm thấy sản phẩm nào phù hợp với tiêu chí của bạn.</p>';
 	}
 
 	// Query phụ (khác Main Query của trang archive) -> LUÔN reset lại
@@ -522,6 +537,8 @@ function custom_register_user( WP_REST_Request $request ) {
 /**
  * Chỉnh Main Query của trang archive seoulive_product:
  * 6 sản phẩm/trang, mới nhất trước.
+ *
+ *  @param WP_Query $query Đối tượng query đang được xử lý (từ hook pre_get_posts).
  */
 function seoulive_modify_product_archive_query( $query ) {
 	if ( is_admin() || ! $query->is_main_query() ) {

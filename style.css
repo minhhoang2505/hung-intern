@@ -1864,3 +1864,34 @@ button{
     font-size:14px;
     font-weight:500;
 }
+/* ==========================================================================
+   AJAX Filter — Loading Spinner + Empty State
+   ========================================================================== */
+
+.seoulive-loading-spinner {
+	width: 32px;
+	height: 32px;
+	margin: 24px auto;
+	border: 3px solid #e0e0e0;
+	border-top-color: #111;
+	border-radius: 50%;
+	animation: seoulive-spin 0.8s linear infinite;
+	display: none;
+}
+
+@keyframes seoulive-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.seoulive-empty-state {
+	grid-column: 1 / -1;
+	text-align: center;
+	padding: 48px 16px;
+}
+
+#seouliveProductFilter:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}

@@ -464,8 +464,33 @@ function renderFooterLinks() {
 // =============================
 function setProductFilterLoading(gridEl, isLoading) {
     if (!gridEl) return;
+
     gridEl.style.opacity = isLoading ? "0.4" : "1";
     gridEl.style.pointerEvents = isLoading ? "none" : "auto";
+
+    // DISABLE SELECT BOX trong lúc chờ request - chặn user spam đổi filter
+    // liên tục, tránh nhiều request chồng chéo trả về không đúng thứ tự.
+    const filterSelect = document.getElementById("seouliveProductFilter");
+    if (filterSelect) {
+        filterSelect.disabled = isLoading;
+    }
+
+    // LOADING SPINNER thật (icon xoay xoay), không chỉ làm mờ opacity.
+    // Tạo 1 lần duy nhất, tái sử dụng cho các lần filter sau, tránh việc
+    // tạo/xóa DOM node liên tục.
+    let spinner = document.getElementById("seouliveFilterSpinner");
+    if (isLoading) {
+        if (!spinner) {
+            spinner = document.createElement("div");
+            spinner.id = "seouliveFilterSpinner";
+            spinner.className = "seoulive-loading-spinner";
+            spinner.setAttribute("aria-hidden", "true");
+            gridEl.parentNode.insertBefore(spinner, gridEl);
+        }
+        spinner.style.display = "block";
+    } else if (spinner) {
+        spinner.style.display = "none";
+    }
 }
 
 async function fetchFilteredProducts(filterValue) {
@@ -508,11 +533,27 @@ async function fetchFilteredProducts(filterValue) {
             throw new Error("Server từ chối request (nonce sai/hết hạn hoặc lỗi xử lý).");
         }
 
-        gridEl.innerHTML = result.data.html;
+        const html = result.data.html;
+
+        // EMPTY STATE (kiểm tra thêm ở client, dù backend đã có fallback):
+        // không để innerHTML trống trơn gây vỡ layout nếu vì lý do nào đó
+        // html trả về rỗng hoàn toàn.
+        if (!html || html.trim() === "") {
+            gridEl.innerHTML =
+                '<p class="seoulive-empty-state text-muted">Không tìm thấy sản phẩm nào phù hợp với tiêu chí của bạn.</p>';
+        } else {
+            gridEl.innerHTML = html;
+        }
     } catch (error) {
+        // GRACEFUL DEGRADATION: không để UI "chết lặng" hay hiện lỗi kỹ
+        // thuật khó hiểu. Báo rõ ràng bằng alert() theo đúng yêu cầu, đồng
+        // thời KHÔNG xóa trắng danh sách sản phẩm cũ (giữ nguyên kết quả lần
+        // trước, tránh làm mất thêm thông tin user đang xem).
         console.error("Lỗi khi lọc sản phẩm qua AJAX:", error);
-        gridEl.innerHTML = `<p class="text-danger">Không thể tải sản phẩm, vui lòng thử lại. (${escapeHTML(error.message)})</p>`;
+        alert("Có lỗi kết nối, vui lòng thử lại sau.");
     } finally {
+        // LUÔN chạy dù thành công hay lỗi - đảm bảo Select không bao giờ bị
+        // kẹt ở trạng thái disabled mãi mãi nếu request thất bại.
         setProductFilterLoading(gridEl, false);
     }
 }
