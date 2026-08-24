@@ -417,7 +417,7 @@ function seoulive_ajax_filter_products() {
 			break;
 
 		case 'in_stock':
-			$query_args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.
+			$query_args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			'relation' => 'OR',
 			array(
 			'key'     => 'stock_status',
@@ -552,3 +552,58 @@ function seoulive_modify_product_archive_query( $query ) {
 	}
 }
 add_action( 'pre_get_posts', 'seoulive_modify_product_archive_query' );
+
+/**
+ * Bài tập 1: Đếm tổng số sản phẩm (post_type = seoulive_product) đang publish.
+ * Dùng $wpdb->get_var() với SQL thuần (SELECT COUNT), không dùng WP_Query.
+ *
+ * @return int Tổng số sản phẩm đang publish.
+ */
+function seoulive_count_published_products() {
+	global $wpdb;
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	$count = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = %s AND post_status = %s",
+			'seoulive_product',
+			'publish'
+		)
+	);
+
+	return (int) $count;
+}
+
+/**
+ * Bài tập 2 & 3: Lấy danh sách ID + Tên sản phẩm có giá (regular_price) > $min_price.
+ * JOIN giữa wp_posts và wp_postmeta bằng $wpdb->get_results().
+ *
+ * QUAN TRỌNG: $min_price luôn được đưa qua $wpdb->prepare() bằng placeholder %f,
+ * KHÔNG nối chuỗi trực tiếp -> chống SQL Injection.
+ *
+ * @param float $min_price Mức giá tối thiểu để lọc.
+ * @return array Mảng object { ID, post_title } của các sản phẩm thoả điều kiện.
+ */
+function seoulive_get_products_above_price( $min_price ) {
+	global $wpdb;
+
+	// Ép kiểu trước khi đưa vào prepare() để chắc chắn luôn là số.
+	$min_price = (float) $min_price;
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT p.ID, p.post_title
+			 FROM {$wpdb->posts} p
+			 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+			 WHERE p.post_type = %s
+			   AND p.post_status = %s
+			   AND pm.meta_key = %s
+			   AND CAST( pm.meta_value AS DECIMAL(10,2) ) > %f",
+			'seoulive_product',
+			'publish',
+			'regular_price',
+			$min_price
+		)
+	);
+}
