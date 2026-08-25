@@ -1,12 +1,10 @@
-# Ép mọi file text (đặc biệt PHP) luôn dùng LF khi commit, bất kể cấu hình
-# core.autocrlf trên máy Windows của từng dev — tránh lặp lại lỗi
-# "End of line character is invalid; expected \n but found \r\n" mỗi lần
-# commit, vì WordPress Coding Standards (PSR-2) yêu cầu LF thuần.
-* text=auto eol=lf
+# Ép Git luôn dùng line ending LF cho các file code, bất kể cấu hình
+# core.autocrlf trên từng máy Windows khác nhau trong team. Không có file
+# này, mỗi máy Windows có thể tự chuyển ngược file về CRLF khi checkout/lưu,
+# gây lỗi PHPCS "Generic.Files.LineEndings.InvalidEOLChar" lặp lại liên tục.
 
 *.php text eol=lf
 *.js  text eol=lf
 *.css text eol=lf
-*.md  text eol=lf
-*.xml text eol=lf
 *.json text eol=lf
+*.md  text eol=lf
