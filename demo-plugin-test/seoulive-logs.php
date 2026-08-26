@@ -55,18 +55,18 @@ function seolive_create_logs_table() {
 	// đúng 2 khoảng trắng giữa "PRIMARY KEY" và tên cột — sai định dạng này
 	// dbDelta() sẽ âm thầm không tạo đúng như mong đợi, không báo lỗi rõ ràng.
 	$sql = "CREATE TABLE {$table_name} (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    user_id BIGINT UNSIGNED NOT NULL,
-    action_name VARCHAR(100) NOT NULL,
-    created_at DATETIME NOT NULL,
-    ip_address VARCHAR(45) NULL,
-    PRIMARY KEY  (id),
-    KEY user_id (user_id),
-    KEY action_name (action_name),
-    KEY created_at (created_at)
-) {$charset_collate};";
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		user_id BIGINT UNSIGNED NOT NULL,
+		action_name VARCHAR(100) NOT NULL,
+		created_at DATETIME NOT NULL,
+		ip_address VARCHAR(45) NULL,
+		PRIMARY KEY  (id),
+		KEY user_id (user_id),
+		KEY action_name (action_name),
+		KEY created_at (created_at)
+	) {$charset_collate};";
 
-	include_once ABSPATH . 'wp-admin/includes/upgrade.php';
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 	dbDelta( $sql );
 }
 register_activation_hook( __FILE__, 'seolive_create_logs_table' );
@@ -77,8 +77,8 @@ register_activation_hook( __FILE__, 'seolive_create_logs_table' );
  * Dùng $wpdb->insert() (không dùng $wpdb->query() thô) — tự escape dữ liệu
  * và cho phép chỉ định $format đúng kiểu cho từng cột.
  *
- * @param  int    $user_id     ID user liên quan tới hành động.
- * @param  string $action_name Tên hành động (VD: 'login').
+ * @param int    $user_id     ID user liên quan tới hành động.
+ * @param string $action_name Tên hành động (VD: 'login').
  * @return int|false ID dòng vừa insert nếu thành công, false nếu thất bại.
  */
 function seolive_insert_log( $user_id, $action_name ) {
@@ -104,7 +104,7 @@ function seolive_insert_log( $user_id, $action_name ) {
 	// $wpdb->insert() trả về số dòng bị ảnh hưởng (1 nếu thành công), hoặc
 	// false nếu có lỗi DB — BẮT BUỘC kiểm tra, không giả định luôn thành công.
 	if ( false === $result ) {
-     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập, không phải debug sót lại.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập, không phải debug sót lại.
 		error_log( '[Seoulive] Ghi log THẤT BẠI. Lỗi DB: ' . $wpdb->last_error );
 		return false;
 	}
@@ -120,8 +120,8 @@ function seolive_insert_log( $user_id, $action_name ) {
  * buộc theo đúng 2 tham số cố định mà riêng hook 'wp_login' quy định.
  *
  * @param string  $user_login Username vừa đăng nhập (WordPress tự truyền
- *                            theo đúng chữ ký hook 'wp_login', không dùng
- *                            tới trong hàm này).
+ *                             theo đúng chữ ký hook 'wp_login', không dùng
+ *                             tới trong hàm này).
  * @param WP_User $user       Đối tượng user vừa đăng nhập thành công.
  */
 function seolive_handle_login( $user_login, $user ) { // phpcs:ignore -- $user_login không dùng tới, nhưng hook 'wp_login' luôn truyền đủ 2 tham số cho mọi callback.
@@ -159,7 +159,7 @@ function seolive_debug_print_recent_logs() {
 	$logs = seolive_get_recent_logs();
 
 	foreach ( $logs as $log ) {
-     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động để kiểm tra dữ liệu thực tế, theo đúng yêu cầu bài tập.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động để kiểm tra dữ liệu thực tế, theo đúng yêu cầu bài tập.
 		error_log(
 			sprintf(
 				'[Seoulive Log] #%d | user_id=%d | action=%s | created_at=%s',
@@ -170,4 +170,218 @@ function seolive_debug_print_recent_logs() {
 			)
 		);
 	}
+}
+
+/**
+ * Lấy 10 log mới nhất, sắp xếp theo id giảm dần.
+ *
+ * @return array Mảng object log.
+ */
+function seolive_get_logs() {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không phải input user, không cần prepare; custom table không có wrapper cấp cao thay thế.
+	return $wpdb->get_results( "SELECT id, user_id, action_name, created_at FROM {$table_name} ORDER BY id DESC LIMIT 10" );
+}
+
+/**
+ * Lấy 1 log theo ID.
+ *
+ * @param int $log_id ID của log cần lấy.
+ * @return object|null Object log nếu tìm thấy, null nếu không.
+ */
+function seolive_get_log( $log_id ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table không có wrapper cấp cao (WP_Query) để thay thế; lấy 1 log theo ID, dữ liệu hiển thị tạm, không cần object cache.
+	return $wpdb->get_row(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định (không phải input người dùng, không cần prepare); chỉ $log_id (dữ liệu động thật) mới cần qua placeholder %d.
+			"SELECT id, user_id, action_name, created_at FROM {$table_name} WHERE id = %d",
+			$log_id
+		)
+	);
+}
+
+/**
+ * Cập nhật action_name của 1 log.
+ *
+ * @param int    $log_id      ID log cần sửa.
+ * @param string $action_name Giá trị action_name mới.
+ * @return string 'success' | 'no_change' | 'not_found' | 'error'.
+ */
+function seolive_update_log_action( $log_id, $action_name ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->update() là cách ghi chuẩn cho custom table.
+	$result = $wpdb->update(
+		$table_name,
+		array( 'action_name' => sanitize_text_field( $action_name ) ),
+		array( 'id' => absint( $log_id ) ),
+		array( '%s' ),
+		array( '%d' )
+	);
+
+	// false = có lỗi DB thật sự (sai tên bảng, sai kiểu dữ liệu...).
+	if ( false === $result ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập.
+		error_log( '[Seoulive] Update log THẤT BẠI. Lỗi DB: ' . $wpdb->last_error );
+		return 'error';
+	}
+
+	// 0 dòng bị ảnh hưởng: có thể do ID không tồn tại, HOẶC giá trị mới
+	// trùng y hệt giá trị cũ (MySQL không tính là "thay đổi"). Phải tự
+	// kiểm tra lại xem record có tồn tại không để phân biệt 2 trường hợp.
+	if ( 0 === $result ) {
+		$existing = seolive_get_log( $log_id );
+		return $existing ? 'no_change' : 'not_found';
+	}
+
+	return 'success';
+}
+
+/**
+ * Xóa 1 log theo ID.
+ *
+ * @param int $log_id ID log cần xóa.
+ * @return string 'success' | 'not_found' | 'error'.
+ */
+function seolive_delete_log( $log_id ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->delete() là cách xóa chuẩn cho custom table.
+	$result = $wpdb->delete(
+		$table_name,
+		array( 'id' => absint( $log_id ) ),
+		array( '%d' )
+	);
+
+	if ( false === $result ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Trace log chủ động theo yêu cầu bài tập.
+		error_log( '[Seoulive] Xóa log THẤT BẠI. Lỗi DB: ' . $wpdb->last_error );
+		return 'error';
+	}
+
+	return ( $result > 0 ) ? 'success' : 'not_found';
+}
+
+/**
+ * Lấy toàn bộ log của 1 user cụ thể, sắp xếp mới nhất trước.
+ *
+ * BẮT BUỘC dùng $wpdb->prepare() vì $user_id là dữ liệu động (đến từ tham
+ * số hàm, có thể xuất phát từ input người dùng ở nơi gọi hàm này) — không
+ * bao giờ được nối trực tiếp vào chuỗi SQL.
+ *
+ * @param int $user_id ID user cần lấy log.
+ * @return array Mảng object log.
+ */
+function seolive_get_user_logs( $user_id ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table không có wrapper cấp cao thay thế; dữ liệu log hiển thị, không cần object cache.
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không cần prepare; $user_id đã qua placeholder %d.
+			"SELECT id, user_id, action_name, created_at FROM {$table_name} WHERE user_id = %d ORDER BY created_at DESC",
+			$user_id
+		)
+	);
+}
+
+/**
+ * Đăng ký menu Admin "Seolive Logs".
+ */
+function seolive_register_logs_admin_menu() {
+	add_menu_page(
+		__( 'Seolive Logs', 'seoulive-core' ),
+		__( 'Seolive Logs', 'seoulive-core' ),
+		'manage_options',
+		'seolive-logs',
+		'seolive_render_logs_admin_page',
+		'dashicons-list-view',
+		26
+	);
+}
+add_action( 'admin_menu', 'seolive_register_logs_admin_menu' );
+
+/**
+ * Render trang Admin quản lý log: hiển thị danh sách + xử lý Delete.
+ */
+function seolive_render_logs_admin_page() {
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Bạn không có quyền truy cập trang này.', 'seoulive-core' ) );
+	}
+
+	// Xử lý Delete: bắt buộc kiểm tra nonce để chống CSRF (kẻ xấu dụ admin
+	// click 1 link lạ khiến trình duyệt tự gửi request xóa mà admin không hay).
+	if ( isset( $_GET['action'], $_GET['log_id'], $_GET['_wpnonce'] ) && 'delete' === $_GET['action'] ) {
+		$log_id = absint( $_GET['log_id'] );
+		$nonce  = sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) );
+
+		if ( ! wp_verify_nonce( $nonce, 'seolive_delete_log_' . $log_id ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Yêu cầu không hợp lệ (nonce sai).', 'seoulive-core' ) . '</p></div>';
+		} else {
+			$delete_result = seolive_delete_log( $log_id );
+
+			if ( 'success' === $delete_result ) {
+				echo '<div class="notice notice-success"><p>' . esc_html__( 'Đã xóa log thành công.', 'seoulive-core' ) . '</p></div>';
+			} elseif ( 'not_found' === $delete_result ) {
+				echo '<div class="notice notice-warning"><p>' . esc_html__( 'Không tìm thấy log để xóa.', 'seoulive-core' ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'Lỗi database khi xóa log.', 'seoulive-core' ) . '</p></div>';
+			}
+		}
+	}
+
+	$logs = seolive_get_logs();
+	?>
+	<div class="wrap">
+		<h1><?php esc_html_e( 'Seolive Logs', 'seoulive-core' ); ?></h1>
+
+		<table class="wp-list-table widefat fixed striped">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'ID', 'seoulive-core' ); ?></th>
+					<th><?php esc_html_e( 'User ID', 'seoulive-core' ); ?></th>
+					<th><?php esc_html_e( 'Action', 'seoulive-core' ); ?></th>
+					<th><?php esc_html_e( 'Created At', 'seoulive-core' ); ?></th>
+					<th><?php esc_html_e( 'Action', 'seoulive-core' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php if ( $logs ) : ?>
+					<?php foreach ( $logs as $log ) : ?>
+						<tr>
+							<td><?php echo esc_html( $log->id ); ?></td>
+							<td><?php echo esc_html( $log->user_id ); ?></td>
+							<td><?php echo esc_html( $log->action_name ); ?></td>
+							<td><?php echo esc_html( $log->created_at ); ?></td>
+							<td>
+								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=seolive-logs&action=delete&log_id=' . $log->id ), 'seolive_delete_log_' . $log->id ) ); ?>"
+									onclick="return confirm('<?php echo esc_js( __( 'Xóa log này?', 'seoulive-core' ) ); ?>');">
+									<?php esc_html_e( 'Delete', 'seoulive-core' ); ?>
+								</a>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				<?php else : ?>
+					<tr>
+						<td colspan="5"><?php esc_html_e( 'Chưa có log nào.', 'seoulive-core' ); ?></td>
+					</tr>
+				<?php endif; ?>
+			</tbody>
+		</table>
+	</div>
+	<?php
 }
