@@ -249,10 +249,21 @@ function seolive_update_log_action( $log_id, $action_name ) {
 /**
  * Xóa 1 log theo ID.
  *
+ * BẮT BUỘC validate $log_id ngay trong hàm này (không chỉ ở tầng gọi) —
+ * "không được nhận giá trị tùy ý rồi đưa thẳng vào xử lý". Hàm này có thể
+ * được gọi từ nhiều nơi khác nhau sau này, không phải lúc nào cũng đi qua
+ * đúng luồng admin_init đã validate sẵn.
+ *
  * @param int $log_id ID log cần xóa.
- * @return string 'success' | 'not_found' | 'error'.
+ * @return string 'success' | 'not_found' | 'error' | 'invalid'.
  */
 function seolive_delete_log( $log_id ) {
+	// VALIDATE trước tiên: log_id phải là số nguyên dương thật sự.
+	$log_id = absint( $log_id );
+	if ( $log_id <= 0 ) {
+		return 'invalid';
+	}
+
 	global $wpdb;
 
 	$table_name = $wpdb->prefix . 'seoulive_logs';
@@ -260,7 +271,7 @@ function seolive_delete_log( $log_id ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $wpdb->delete() là cách xóa chuẩn cho custom table.
 	$result = $wpdb->delete(
 		$table_name,
-		array( 'id' => absint( $log_id ) ),
+		array( 'id' => $log_id ),
 		array( '%d' )
 	);
 
@@ -299,6 +310,73 @@ function seolive_get_user_logs( $user_id ) {
 }
 
 /**
+ * Đếm tổng số log khớp điều kiện — phục vụ tính tổng số trang cho Pagination.
+ *
+ * @param int $user_id Lọc theo user_id nếu > 0, bỏ qua nếu = 0 (đếm tất cả).
+ * @return int Tổng số dòng khớp.
+ */
+function seolive_count_logs( $user_id = 0 ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	if ( $user_id > 0 ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table không có wrapper cấp cao thay thế.
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không cần prepare; $user_id đã qua placeholder %d.
+				"SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d",
+				$user_id
+			)
+		);
+	}
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không có tham số động nào cần prepare ở câu COUNT toàn bộ này.
+	return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" );
+}
+
+/**
+ * Lấy danh sách log có phân trang, kèm tùy chọn lọc theo user_id.
+ *
+ * @param int $paged    Trang hiện tại (bắt đầu từ 1).
+ * @param int $user_id  Lọc theo user_id nếu > 0, bỏ qua nếu = 0.
+ * @param int $per_page Số dòng mỗi trang.
+ * @return array Mảng object log.
+ */
+function seolive_get_logs_paginated( $paged = 1, $user_id = 0, $per_page = 10 ) {
+	global $wpdb;
+
+	$table_name = $wpdb->prefix . 'seoulive_logs';
+
+	// VALIDATE: $paged phải >= 1, không được để offset âm.
+	$paged  = max( 1, absint( $paged ) );
+	$offset = ( $paged - 1 ) * $per_page;
+
+	if ( $user_id > 0 ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table không có wrapper cấp cao thay thế.
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không cần prepare; $user_id/$per_page/$offset đều đã qua placeholder %d.
+				"SELECT id, user_id, action_name, created_at FROM {$table_name} WHERE user_id = %d ORDER BY id DESC LIMIT %d OFFSET %d",
+				$user_id,
+				$per_page,
+				$offset
+			)
+		);
+	}
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom table không có wrapper cấp cao thay thế.
+	return $wpdb->get_results(
+		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table_name build từ $wpdb->prefix + tên cố định, không cần prepare; $per_page/$offset đã qua placeholder %d.
+			"SELECT id, user_id, action_name, created_at FROM {$table_name} ORDER BY id DESC LIMIT %d OFFSET %d",
+			$per_page,
+			$offset
+		)
+	);
+}
+
+/**
  * Đăng ký menu Admin "Seolive Logs".
  */
 function seolive_register_logs_admin_menu() {
@@ -315,7 +393,81 @@ function seolive_register_logs_admin_menu() {
 add_action( 'admin_menu', 'seolive_register_logs_admin_menu' );
 
 /**
- * Render trang Admin quản lý log: hiển thị danh sách + xử lý Delete.
+ * XỬ LÝ REQUEST — TÁCH RIÊNG hoàn toàn khỏi phần render HTML bên dưới.
+ *
+ * Hook vào 'admin_init' (không phải chạy trực tiếp trong hàm render) vì
+ * đây là thời điểm chuẩn của WordPress để xử lý action trước khi bất kỳ
+ * HTML nào được gửi ra — bắt buộc phải vậy nếu muốn dùng wp_safe_redirect()
+ * sau đó (không thể redirect sau khi header/HTML đã xuất ra).
+ *
+ * Luồng đúng thứ tự: Click Delete -> Request -> Check capability ->
+ * Check nonce -> Validate log_id -> Delete -> Redirect.
+ */
+function seolive_handle_admin_actions() {
+
+	// Chỉ xử lý khi đang ở đúng trang Admin của mình — tránh chạy logic
+	// này trên MỌI trang admin khác trong site.
+	if ( ! isset( $_GET['page'] ) || 'seolive-logs' !== sanitize_key( wp_unslash( $_GET['page'] ) ) ) {
+		return;
+	}
+
+	if ( ! isset( $_GET['action'] ) || 'delete' !== sanitize_key( wp_unslash( $_GET['action'] ) ) ) {
+		return;
+	}
+
+	// BƯỚC 1 — CHECK CAPABILITY trước tiên, trước cả khi đụng tới nonce hay
+	// dữ liệu — không tiết lộ bất kỳ điều gì cho user không đủ quyền.
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Bạn không có quyền thực hiện thao tác này.', 'seoulive-core' ) );
+	}
+
+	// Lấy log_id thô để build đúng action name cho nonce (nonce của mỗi log
+	// là duy nhất theo ID, xem wp_nonce_url() lúc render bên dưới).
+	$log_id = isset( $_GET['log_id'] ) ? absint( $_GET['log_id'] ) : 0;
+
+	// BƯỚC 2 — CHECK NONCE. check_admin_referer() tự động wp_die() với màn
+	// hình "Are you sure you want to do this?" nếu nonce sai/thiếu/hết hạn,
+	// không cần tự viết code chặn thủ công.
+	check_admin_referer( 'seolive_delete_log_' . $log_id );
+
+	// BƯỚC 3 — VALIDATE log_id. Nếu không hợp lệ, KHÔNG được gọi tới xóa,
+	// redirect thẳng về danh sách kèm cờ báo lỗi.
+	if ( $log_id <= 0 ) {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => 'seolive-logs',
+					'deleted' => 'invalid',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	// BƯỚC 4 — DELETE (chỉ tới đây khi cả 3 bước trên đều hợp lệ).
+	$result = seolive_delete_log( $log_id );
+
+	// BƯỚC 5 — REDIRECT về danh sách, kèm kết quả để render() hiện thông báo.
+	wp_safe_redirect(
+		add_query_arg(
+			array(
+				'page'    => 'seolive-logs',
+				'deleted' => $result,
+			),
+			admin_url( 'admin.php' )
+		)
+	);
+	exit;
+}
+add_action( 'admin_init', 'seolive_handle_admin_actions' );
+
+/**
+ * Render trang Admin quản lý log.
+ *
+ * CHỈ LÀM ĐÚNG 1 VIỆC: đọc dữ liệu (đã validate/sanitize) và xuất ra HTML.
+ * Không xử lý action Delete ở đây nữa — toàn bộ đã chuyển sang
+ * seolive_handle_admin_actions() ở trên, chạy sớm hơn qua hook 'admin_init'.
  */
 function seolive_render_logs_admin_page() {
 
@@ -323,31 +475,64 @@ function seolive_render_logs_admin_page() {
 		wp_die( esc_html__( 'Bạn không có quyền truy cập trang này.', 'seoulive-core' ) );
 	}
 
-	// Xử lý Delete: bắt buộc kiểm tra nonce để chống CSRF (kẻ xấu dụ admin
-	// click 1 link lạ khiến trình duyệt tự gửi request xóa mà admin không hay).
-	if ( isset( $_GET['action'], $_GET['log_id'], $_GET['_wpnonce'] ) && 'delete' === $_GET['action'] ) {
-		$log_id = absint( $_GET['log_id'] );
-		$nonce  = sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) );
+	// Thông báo kết quả Delete — đọc từ query string sau khi admin_init đã
+	// redirect về đây (KHÔNG xử lý logic xóa ở đây, chỉ HIỂN THỊ kết quả).
+	if ( isset( $_GET['deleted'] ) ) {
+		$deleted_status = sanitize_key( wp_unslash( $_GET['deleted'] ) );
 
-		if ( ! wp_verify_nonce( $nonce, 'seolive_delete_log_' . $log_id ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'Yêu cầu không hợp lệ (nonce sai).', 'seoulive-core' ) . '</p></div>';
-		} else {
-			$delete_result = seolive_delete_log( $log_id );
+		$messages = array(
+			'success'   => array( 'notice-success', __( 'Đã xóa log thành công.', 'seoulive-core' ) ),
+			'not_found' => array( 'notice-warning', __( 'Không tìm thấy log để xóa.', 'seoulive-core' ) ),
+			'invalid'   => array( 'notice-error', __( 'ID log không hợp lệ.', 'seoulive-core' ) ),
+			'error'     => array( 'notice-error', __( 'Lỗi database khi xóa log.', 'seoulive-core' ) ),
+		);
 
-			if ( 'success' === $delete_result ) {
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Đã xóa log thành công.', 'seoulive-core' ) . '</p></div>';
-			} elseif ( 'not_found' === $delete_result ) {
-				echo '<div class="notice notice-warning"><p>' . esc_html__( 'Không tìm thấy log để xóa.', 'seoulive-core' ) . '</p></div>';
-			} else {
-				echo '<div class="notice notice-error"><p>' . esc_html__( 'Lỗi database khi xóa log.', 'seoulive-core' ) . '</p></div>';
-			}
+		if ( isset( $messages[ $deleted_status ] ) ) {
+			printf(
+				'<div class="notice %1$s is-dismissible"><p>%2$s</p></div>',
+				esc_attr( $messages[ $deleted_status ][0] ),
+				esc_html( $messages[ $deleted_status ][1] )
+			);
 		}
 	}
 
-	$logs = seolive_get_logs();
+	// SEARCH: đọc + validate user_id từ $_GET. absint() vừa sanitize (ép số)
+	// vừa validate (số âm/chữ sẽ tự thành 0 = "không lọc").
+	$search_user_id = isset( $_GET['search_user_id'] ) ? absint( $_GET['search_user_id'] ) : 0;
+
+	// PAGINATION: validate $paged luôn >= 1.
+	$paged = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+
+	$per_page    = 10;
+	$total_logs  = seolive_count_logs( $search_user_id );
+	$total_pages = (int) ceil( $total_logs / $per_page );
+	$logs        = seolive_get_logs_paginated( $paged, $search_user_id, $per_page );
 	?>
 	<div class="wrap">
 		<h1><?php esc_html_e( 'Seolive Logs', 'seoulive-core' ); ?></h1>
+
+		<!--
+			SEARCH FORM: dùng method="get" nên khi Search sẽ redirect ra đúng
+			URL kèm ?search_user_id=..., không cần AJAX, không cần nonce (GET
+			chỉ đọc dữ liệu, không thay đổi gì trong DB nên không cần chống CSRF).
+		-->
+		<form method="get" style="margin: 16px 0;">
+			<input type="hidden" name="page" value="seolive-logs">
+			<label for="search_user_id"><?php esc_html_e( 'Search User ID:', 'seoulive-core' ); ?></label>
+			<input
+				type="number"
+				min="1"
+				name="search_user_id"
+				id="search_user_id"
+				value="<?php echo esc_attr( $search_user_id > 0 ? $search_user_id : '' ); ?>"
+				style="width: 120px;">
+			<button type="submit" class="button"><?php esc_html_e( 'Search', 'seoulive-core' ); ?></button>
+			<?php if ( $search_user_id > 0 ) : ?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=seolive-logs' ) ); ?>" class="button">
+					<?php esc_html_e( 'Xóa bộ lọc', 'seoulive-core' ); ?>
+				</a>
+			<?php endif; ?>
+		</form>
 
 		<table class="wp-list-table widefat fixed striped">
 			<thead>
@@ -382,6 +567,34 @@ function seolive_render_logs_admin_page() {
 				<?php endif; ?>
 			</tbody>
 		</table>
+
+		<?php if ( $total_pages > 1 ) : ?>
+			<div class="tablenav">
+				<div class="tablenav-pages">
+					<?php
+					// Giữ nguyên search_user_id khi chuyển trang, chỉ đổi 'paged'.
+					$base_args = array( 'page' => 'seolive-logs' );
+					if ( $search_user_id > 0 ) {
+						$base_args['search_user_id'] = $search_user_id;
+					}
+
+					echo wp_kses_post(
+						paginate_links(
+							array(
+								'base'      => add_query_arg( array_merge( $base_args, array( 'paged' => '%#%' ) ), admin_url( 'admin.php' ) ),
+								'format'    => '',
+								'current'   => $paged,
+								'total'     => $total_pages,
+								'prev_text' => __( '« Previous', 'seoulive-core' ),
+								'next_text' => __( 'Next »', 'seoulive-core' ),
+							)
+						)
+					);
+					?>
+				</div>
+			</div>
+		<?php endif; ?>
+
 	</div>
 	<?php
 }
