@@ -477,8 +477,10 @@ function seolive_render_logs_admin_page() {
 
 	// Thông báo kết quả Delete — đọc từ query string sau khi admin_init đã
 	// redirect về đây (KHÔNG xử lý logic xóa ở đây, chỉ HIỂN THỊ kết quả).
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Chỉ ĐỌC cờ trạng thái để hiển thị thông báo (không thực thi hành động nào ở đây) — thao tác Delete thật sự đã được xác thực đầy đủ (capability + nonce) trong seolive_handle_admin_actions() TRƯỚC KHI redirect tới đây. Giá trị $_GET['deleted'] ở bước này chỉ mang tính hiển thị, không có tác dụng phụ nào lên dữ liệu.
 	if ( isset( $_GET['deleted'] ) ) {
 		$deleted_status = sanitize_key( wp_unslash( $_GET['deleted'] ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$messages = array(
 			'success'   => array( 'notice-success', __( 'Đã xóa log thành công.', 'seoulive-core' ) ),
@@ -498,10 +500,10 @@ function seolive_render_logs_admin_page() {
 
 	// SEARCH: đọc + validate user_id từ $_GET. absint() vừa sanitize (ép số)
 	// vừa validate (số âm/chữ sẽ tự thành 0 = "không lọc").
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Đọc GET để LỌC HIỂN THỊ (search theo user_id + pagination), không làm thay đổi bất kỳ dữ liệu nào trong DB. Nonce chỉ có ý nghĩa bảo vệ hành động làm thay đổi trạng thái (VD Delete ở trên), không áp dụng cho việc lọc/xem dữ liệu qua GET. Dùng phpcs:disable/enable (thay vì ignore từng dòng) để không bị lệch vị trí khi code phía trên/dưới thay đổi số dòng.
 	$search_user_id = isset( $_GET['search_user_id'] ) ? absint( $_GET['search_user_id'] ) : 0;
-
-	// PAGINATION: validate $paged luôn >= 1.
-	$paged = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+	$paged          = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	$per_page    = 10;
 	$total_logs  = seolive_count_logs( $search_user_id );

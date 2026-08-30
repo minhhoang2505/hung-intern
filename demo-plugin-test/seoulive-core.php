@@ -790,7 +790,13 @@ class Seoulive_Core_Plugin {
 // Tách logic ghi log (custom table) ra file riêng — bắt buộc theo WordPress
 // Coding Standards: 1 file không được vừa chứa class vừa chứa hàm rời
 // (xem Universal.Files.SeparateFunctionsFromOO.Mixed).
-require_once plugin_dir_path( __FILE__ ) . 'seoulive-logs.php';
-require_once plugin_dir_path( __FILE__ ) . 'phpmailer-init-demo.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/seoulive-logs.php';
+
+// REST API cho bảng seolive_logs (namespace 'seolive/v1') — nạp SAU
+// seoulive-logs.php vì Repository tái sử dụng các hàm $wpdb đã định nghĩa
+// trong đó (seolive_get_logs_paginated, seolive_count_logs, seolive_get_log,
+// seolive_delete_log).
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-seolive-logs-repository.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-seolive-logs-controller.php';
 
 Seoulive_Core_Plugin::get_instance();
